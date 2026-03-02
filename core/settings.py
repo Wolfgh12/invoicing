@@ -29,7 +29,7 @@ DEBUG = False
 ALLOWED_HOSTS = [
     'localhost', 
     '127.0.0.1', 
-    'finance.edu.gh', 
+    'finance.ugc.edu.gh', 
     'www.finance.ugc.edu.gh', 
     '.herokuapp.com', 
     '.pythonanywhere.com'
