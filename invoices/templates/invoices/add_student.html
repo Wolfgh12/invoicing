@@ -1,0 +1,191 @@
+{% extends 'invoices/base.html' %}
+{% load static %}
+
+{% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { navy: '#002147', gold: '#D4AF37', 'navy-deep': '#001630' },
+        borderRadius: { 'xl-plus': '1.25rem', '2xl-plus': '1.75rem' }
+      }
+    }
+  }
+</script>
+
+<div class="min-h-screen bg-[#f4f7fa] py-12 px-4 flex justify-center items-start animate-page-in">
+    <div class="w-full max-w-4xl">
+        
+        <nav class="flex items-center space-x-3 mb-8 text-sm group">
+            <a href="{% url 'student_list' %}" class="flex items-center text-navy/60 hover:text-navy transition-all">
+                <div class="bg-white p-1.5 rounded-lg shadow-sm mr-2"><i class="fas fa-database text-xs"></i></div>
+                <span class="font-bold uppercase tracking-wider text-[11px]">Database</span>
+            </a>
+            <span class="text-gray-300 text-lg">/</span>
+            <span class="text-navy font-black uppercase tracking-wider text-[11px]">{% if edit_mode %}Update{% else %}New Registration{% endif %}</span>
+        </nav>
+
+        <div class="bg-white rounded-2xl-plus shadow-[0_20px_50px_rgba(0,33,71,0.1)] overflow-hidden border border-white">
+            <div class="grid grid-cols-1 lg:grid-cols-12">
+                
+                <div class="hidden lg:flex lg:col-span-1 bg-gold items-center justify-center py-12">
+                   <div class="rotate-180 [writing-mode:vertical-lr] text-navy font-black uppercase tracking-[10px] text-xl">UGC FINANCE</div>
+                </div>
+
+                <div class="lg:col-span-11 p-8 md:p-12">
+                    <form method="POST" enctype="multipart/form-data" class="space-y-10" id="student-form">
+                        {% csrf_token %}
+
+                        <div class="sr-only">
+                            <input type="file" name="profile_image" id="id_profile_image" accept="image/*" onchange="previewImage(this)">
+                            <input type="checkbox" name="profile_image-clear" id="profile_image-clear_id">
+                        </div>
+
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+                            <div class="flex items-center space-x-6">
+                                
+                                <div class="relative">
+                                    <label for="id_profile_image" class="cursor-pointer group/avatar relative block h-24 w-24">
+                                        <div id="avatar-container" class="h-full w-full bg-navy-deep rounded-2xl flex items-center justify-center shadow-2xl rotate-3 group-hover/avatar:rotate-0 group-hover/avatar:scale-105 transition-all duration-500 overflow-hidden border-4 border-white ring-2 ring-gold/20">
+                                            
+                                            {% if student.profile_image %}
+                                                <img id="preview-img" src="{{ student.profile_image.url }}" class="h-full w-full object-cover">
+                                                <div id="preview-icon" class="text-center hidden">
+                                                    <i class="fas fa-camera text-gold text-2xl mb-1"></i>
+                                                </div>
+                                            {% else %}
+                                                <img id="preview-img" class="h-full w-full object-cover hidden">
+                                                <div id="preview-icon" class="text-center">
+                                                    <i class="fas fa-camera text-gold text-2xl mb-1"></i>
+                                                    <p class="text-[8px] text-gold/60 font-black uppercase tracking-tighter">Upload</p>
+                                                </div>
+                                            {% endif %}
+
+                                            <div class="absolute inset-0 bg-navy/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                                                <i class="fas fa-cloud-upload-alt text-white text-lg"></i>
+                                            </div>
+                                        </div>
+                                    </label>
+
+                                    <button type="button" id="remove-btn" onclick="removeImage()" 
+                                        class="{% if not student.profile_image %}hidden{% endif %} absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-lg border-2 border-white transition-transform active:scale-75 z-20">
+                                        <i class="fas fa-times text-xs"></i>
+                                    </button>
+                                </div>
+
+                                <div>
+                                    <h1 class="text-3xl font-black text-navy leading-tight tracking-tight">
+                                        {% if edit_mode %}Profile <span class="text-gold">Update</span>{% else %}Student <span class="text-gold">Registry</span>{% endif %}
+                                    </h1>
+                                    <p id="upload-status" class="text-gray-400 font-medium text-[10px] mt-1 uppercase tracking-widest">
+                                        {% if student.profile_image %}Photograph uploaded{% else %}Click the box to select a photograph{% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+                            <div class="md:col-span-2 group">
+                                <label class="label-custom">Student Full Name</label>
+                                <div class="relative">{{ form.full_name }}</div>
+                            </div>
+                            <div class="group">
+                                <label class="label-custom">Index Identification</label>
+                                <div class="relative">{{ form.index_number }}</div>
+                            </div>
+                            <div class="group">
+                                <label class="label-custom">Academic Year/Level</label>
+                                <div class="relative">{{ form.level }}</div>
+                            </div>
+                            <div class="md:col-span-2 group">
+                                <label class="label-custom">Major Program of Study</label>
+                                <div class="relative">{{ form.program }}</div>
+                            </div>
+                            <div class="group">
+                                <label class="label-custom">Corporate Email</label>
+                                <div class="relative">{{ form.email }}</div>
+                            </div>
+                            <div class="group">
+                                <label class="label-custom">Contact Hotline</label>
+                                <div class="relative">{{ form.phone }}</div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row items-center justify-between pt-10 border-t border-gray-100 gap-6">
+                            <a href="{% url 'student_list' %}" class="text-gray-400 hover:text-navy font-black text-[10px] uppercase tracking-widest">
+                                <i class="fas fa-chevron-left mr-2"></i> Cancel
+                            </a>
+                            <button type="submit" class="w-full sm:w-auto px-12 py-4 bg-gold hover:bg-navy text-navy hover:text-white font-black text-xs uppercase tracking-[2px] rounded-xl transition-all duration-300">
+                                {% if edit_mode %}Apply Changes{% else %}Confirm Registration{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function previewImage(input) {
+        const previewImg = document.getElementById('preview-img');
+        const previewIcon = document.getElementById('preview-icon');
+        const removeBtn = document.getElementById('remove-btn');
+        const clearCheckbox = document.getElementById('profile_image-clear_id');
+        
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewImg.classList.remove('hidden');
+                previewIcon.classList.add('hidden');
+                removeBtn.classList.remove('hidden');
+                // Uncheck clear checkbox if user picks a new file
+                if(clearCheckbox) clearCheckbox.checked = false;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function removeImage() {
+        const input = document.getElementById('id_profile_image');
+        const previewImg = document.getElementById('preview-img');
+        const previewIcon = document.getElementById('preview-icon');
+        const removeBtn = document.getElementById('remove-btn');
+        const clearCheckbox = document.getElementById('profile_image-clear_id');
+
+        // Clear the file input
+        input.value = "";
+        
+        // Hide image and show camera icon
+        previewImg.classList.add('hidden');
+        previewImg.src = "";
+        previewIcon.classList.remove('hidden');
+        removeBtn.classList.add('hidden');
+
+        // Mark for deletion in Django
+        if(clearCheckbox) clearCheckbox.checked = true;
+    }
+</script>
+
+<style>
+    input:not([type="file"]), select {
+        width: 100% !important;
+        padding: 1rem 1rem 1rem 1rem !important;
+        background-color: #fcfdfe !important;
+        border: 2px solid #f1f3f5 !important;
+        border-radius: 14px !important;
+        font-size: 0.85rem !important;
+        font-weight: 600 !important;
+        color: #002147 !important;
+        transition: all 0.3s ease !important;
+    }
+    input:focus { border-color: #D4AF37 !important; outline: none; }
+    .label-custom { display: block; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 1.5px; color: #002147; margin-bottom: 0.5rem; }
+    .animate-page-in { animation: slideUp 0.5s ease-out forwards; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+{% endblock %}

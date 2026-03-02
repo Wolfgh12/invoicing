@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.4;
+        }
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #417690;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .logo {
+            /* Increased to 180px for a more prominent look on A4 */
+            width: 180px;
+            height: auto;
+        }
+        .institution-details {
+            text-align: right;
+        }
+        .institution-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #417690;
+            margin-bottom: 5px;
+        }
+        .invoice-title {
+            font-size: 28px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+        .info-table {
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        .info-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .info-value {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        .items-table th {
+            background-color: #f2f2f2;
+            padding: 10px;
+            text-align: left;
+            font-size: 13px;
+            border-bottom: 1px solid #ddd;
+        }
+        .items-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+        .totals-table {
+            width: 40%;
+            margin-left: 60%;
+        }
+        .totals-row td {
+            padding: 5px 10px;
+        }
+        .grand-total {
+            background-color: #417690;
+            color: white;
+            font-weight: bold;
+        }
+        .footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <table class="header-table">
+        <tr>
+            <td>
+                {% if logo_path %}
+                    <img src="{{ logo_path }}" class="logo">
+                {% endif %}
+            </td>
+            <td class="institution-details">
+                <div class="institution-name">{{ config.institution_name }}</div>
+                <div>{{ config.institution_address }}</div>
+                <div>{{ config.institution_email }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="invoice-title">Invoice</div>
+
+    <table class="info-table">
+        <tr>
+            <td width="50%">
+                <div class="info-label">Bill To:</div>
+                <div class="info-value">{{ invoice.student.full_name }}</div>
+                <div>Index: {{ invoice.student.index_number }}</div>
+                <div>Program: {{ invoice.student.program }}</div>
+            </td>
+            <td width="50%" style="text-align: right;">
+                <div>
+                    <span class="info-label">Invoice #:</span> 
+                    <span class="info-value">{{ invoice.invoice_number }}</span>
+                </div>
+                <div>
+                    <span class="info-label">Due Date:</span> 
+                    <span class="info-value">{{ invoice.due_date }}</span>
+                </div>
+                <div>
+                    <span class="info-label">Status:</span> 
+                    <span class="info-value">
+                        {% if invoice.is_paid %}PAID{% else %}PENDING{% endif %}
+                    </span>
+                </div>
+            </td>
+        </tr>
+    </table>
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th>Description</th>
+                <th style="text-align: center;">Qty</th>
+                <th style="text-align: right;">Rate ({{ config.base_currency }})</th>
+                <th style="text-align: right;">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in invoice.items.all %}
+            <tr>
+                <td>{{ item.description }}</td>
+                <td style="text-align: center;">{{ item.quantity }}</td>
+                <td style="text-align: right;">{{ item.rate }}</td>
+                <td style="text-align: right;">{{ item.total }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="totals-table">
+        <tr class="totals-row">
+            <td>Subtotal:</td>
+            <td style="text-align: right;">{{ config.base_currency }} {{ invoice.grand_total }}</td>
+        </tr>
+        <tr class="totals-row">
+            <td>Paid to Date:</td>
+            <td style="text-align: right;">{{ config.base_currency }} {{ invoice.total_paid }}</td>
+        </tr>
+        <tr class="totals-row grand-total">
+            <td><strong>Balance Due:</strong></td>
+            <td style="text-align: right;"><strong>{{ config.base_currency }} {{ invoice.balance_due }}</strong></td>
+        </tr>
+    </table>
+
+    <div class="footer">
+        <p>Generated by {{ config.institution_name }} Financial Portal | Thank you for your business.</p>
+        <p>Issued on: {{ generated_at|date:"l, d M Y | g:i A" }}</p>
+    </div>
+</body>
+</html>

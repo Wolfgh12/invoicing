@@ -1,0 +1,337 @@
+{% extends 'invoices/base.html' %}
+
+{% block content %}
+<div class="container-fluid animate-fade-in" id="create-invoice-wrapper">
+    <div class="mb-4">
+        <h2 class="fw-bold page-title">Create Official Invoice</h2>
+        <p class="text-muted">Enter details below to generate a new financial record.</p>
+    </div>
+
+    <form method="post" id="invoice-form">
+        {% csrf_token %}
+        
+        <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 main-info-card">
+            <div class="row g-3">
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold">Student / Client Name</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-0"><i class="fas fa-user text-muted"></i></span>
+                        {{ form.student }}
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label fw-semibold">Invoice #</label>
+                    {{ form.invoice_number }}
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label fw-semibold">Due Date</label>
+                    {{ form.due_date }}
+                </div>
+                <div class="col-12 d-none">
+                    {{ form.invoice_type }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden items-card">
+            <div class="card-header border-0 py-3 d-flex justify-content-between align-items-center header-bg">
+                <h5 class="mb-0 fw-bold title-text">Line Items</h5>
+                <span class="badge rounded-pill bg-ugc-navy">Items: <span id="item-count">1</span></span>
+            </div>
+            
+            {{ formset.management_form }}
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 responsive-table">
+                    <thead class="table-header-bg d-none d-md-table-header-group">
+                        <tr>
+                            <th class="ps-4">Description</th>
+                            <th style="width: 15%;">Qty</th>
+                            <th style="width: 20%;">Rate (GHS)</th>
+                            <th style="width: 15%;">Total</th>
+                            <th class="pe-4"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="item-rows">
+                        {% for item_form in formset %}
+                        <tr class="item-row animate-row">
+                            <td class="ps-4" data-label="Description">{{ item_form.description }}</td>
+                            <td data-label="Qty">{{ item_form.quantity }}</td>
+                            <td data-label="Rate (GHS)">{{ item_form.rate }}</td>
+                            <td data-label="Total" class="fw-bold">GHS <span class="line-total">0.00</span></td>
+                            <td class="pe-4 text-end action-cell">
+                                <button type="button" class="btn btn-link text-danger remove-row-btn p-0">
+                                    <i class="fas fa-minus-circle fa-lg"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="p-3 footer-bg border-top">
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill add-btn w-100-mobile" id="add-item-btn">
+                    <i class="fas fa-plus-circle me-1"></i> Add Another Item
+                </button>
+            </div>
+        </div>
+
+        <div class="row mt-4 align-items-center">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <p class="text-muted small"><i class="fas fa-info-circle me-1"></i> Totals calculate automatically as you type.</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <div class="d-inline-block p-3 rounded-4 shadow-sm border border-gold-light mb-3 total-box w-100-mobile">
+                    <h5 class="text-muted mb-1 small uppercase fw-bold">Grand Total</h5>
+                    <h2 class="fw-bold mb-0 total-amount-text">GHS <span id="grand-total">0.00</span></h2>
+                </div>
+                <br>
+                <button type="submit" class="btn btn-ugc btn-lg px-5 py-3 rounded-pill shadow w-100-mobile">
+                    <i class="fas fa-check-circle me-2"></i>Finalize & Save
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="modal fade" id="validationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden adaptive-card">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="modal-title fw-800 text-danger text-uppercase small"><i class="fas fa-exclamation-triangle me-2"></i> Action Required</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body px-4 pb-4">
+                <p class="adaptive-text-main fw-600 mb-0">Nana, you need at least one item on this invoice to proceed.</p>
+                <p class="text-muted small mt-2">Every invoice must have a description and a rate before it can be saved.</p>
+            </div>
+            <div class="modal-footer border-0 px-4 pb-4">
+                <button type="button" class="btn btn-ugc w-100 rounded-pill" data-bs-dismiss="modal">Understood</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* 1. DARK MODE OVERRIDES */
+    [data-bs-theme="dark"] #create-invoice-wrapper, 
+    [data-bs-theme="dark"] .modal-content {
+        --text-main: #D4AF37 !important;
+        --bs-body-color: #D4AF37 !important;
+    }
+
+    [data-bs-theme="dark"] .page-title,
+    [data-bs-theme="dark"] .title-text,
+    [data-bs-theme="dark"] label,
+    [data-bs-theme="dark"] .total-amount-text,
+    [data-bs-theme="dark"] .adaptive-text-main {
+        color: var(--ugc-gold) !important;
+    }
+
+    [data-bs-theme="dark"] .card, 
+    [data-bs-theme="dark"] .total-box,
+    [data-bs-theme="dark"] .modal-content {
+        background-color: #111827 !important;
+        border: 1px solid rgba(212, 175, 55, 0.2) !important;
+    }
+
+    [data-bs-theme="dark"] .header-bg,
+    [data-bs-theme="dark"] .table-header-bg,
+    [data-bs-theme="dark"] .footer-bg,
+    [data-bs-theme="dark"] .bg-light {
+        background-color: #1f2937 !important;
+        color: var(--ugc-gold) !important;
+    }
+
+    [data-bs-theme="dark"] input, 
+    [data-bs-theme="dark"] select,
+    [data-bs-theme="dark"] .input-group-text {
+        background-color: #1f2937 !important;
+        border-color: #374151 !important;
+        color: #f9fafb !important;
+    }
+
+    /* 2. BASE STYLES */
+    .fw-800 { font-weight: 800; }
+    .fw-600 { font-weight: 600; }
+    .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .bg-ugc-navy { background-color: var(--ugc-navy); color: white; }
+    .page-title { color: var(--ugc-navy); }
+    .border-gold-light { border-color: rgba(212, 175, 55, 0.3) !important; }
+
+    input, select {
+        border-radius: 8px !important;
+        border: 1px solid #dee2e6 !important;
+        padding: 10px !important;
+        width: 100%;
+    }
+    
+    .btn-ugc {
+        background-color: var(--ugc-gold) !important;
+        color: white !important;
+        border: none;
+        font-weight: 700;
+        transition: all 0.3s ease;
+    }
+    .btn-ugc:hover {
+        background-color: #b8962e !important;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
+    }
+
+    .add-btn { border-color: var(--ugc-gold); color: var(--ugc-gold); }
+    .add-btn:hover { background: var(--ugc-gold); color: white; border-color: var(--ugc-gold); }
+
+    /* MOBILE RESPONSIVE TABLE LOGIC */
+    @media (max-width: 767.98px) {
+        .w-100-mobile { width: 100% !important; }
+        
+        .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+            display: block;
+            width: 100%;
+        }
+        
+        .responsive-table tr {
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 1rem;
+            background: rgba(255,255,255,0.02);
+            position: relative;
+        }
+
+        .responsive-table td {
+            text-align: right;
+            padding: 0.5rem 0;
+            border: none;
+            position: relative;
+            padding-left: 50%;
+        }
+
+        .responsive-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            width: 45%;
+            text-align: left;
+            font-weight: 600;
+            color: var(--ugc-navy);
+        }
+
+        [data-bs-theme="dark"] .responsive-table td::before {
+            color: var(--ugc-gold);
+        }
+
+        .responsive-table .ps-4 { padding-left: 50% !important; }
+        
+        .action-cell {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            padding-left: 0 !important;
+            width: auto !important;
+        }
+        .action-cell::before { content: "" !important; }
+    }
+</style>
+
+<script>
+    // UPDATE: Pick exactly what is typed in Description
+    function updateInvoiceType() {
+        const firstRowDescInput = document.querySelector('.item-row:first-child input[name$="-description"]');
+        const invoiceTypeField = document.querySelector('[name="invoice_type"]');
+        
+        if (firstRowDescInput && invoiceTypeField) {
+            let val = firstRowDescInput.value.trim();
+            if (val !== "") {
+                // Capitalize first letter for a cleaner look on dashboard
+                invoiceTypeField.value = val.charAt(0).toUpperCase() + val.slice(1);
+            } else {
+                invoiceTypeField.value = "General";
+            }
+        }
+    }
+
+    function calculateGrandTotal() {
+        let grandTotal = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const qtyInput = row.querySelector('input[name$="-quantity"]');
+            const rateInput = row.querySelector('input[name$="-rate"]');
+            
+            if (qtyInput && rateInput) {
+                const qty = parseFloat(qtyInput.value) || 0;
+                const rate = parseFloat(rateInput.value) || 0;
+                const total = qty * rate;
+                
+                row.querySelector('.line-total').innerText = total.toFixed(2);
+                grandTotal += total;
+            }
+        });
+        document.getElementById('grand-total').innerText = grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('item-count').innerText = document.querySelectorAll('.item-row').length;
+        
+        updateInvoiceType();
+    }
+
+    document.getElementById('add-item-btn').addEventListener('click', function() {
+        const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+        const currentCount = parseInt(totalForms.value);
+        const tbody = document.getElementById('item-rows');
+        const rows = tbody.querySelectorAll('.item-row');
+        const lastRow = rows[rows.length - 1];
+        
+        const newRow = lastRow.cloneNode(true);
+
+        newRow.querySelectorAll('input, select, textarea').forEach(input => {
+            const name = input.name.replace(`-${currentCount-1}-`, `-${currentCount}-`);
+            const id = input.id.replace(`-${currentCount-1}-`, `-${currentCount}-`);
+            input.name = name;
+            input.id = id;
+            input.value = ''; 
+        });
+
+        newRow.querySelector('.line-total').innerText = '0.00';
+        tbody.appendChild(newRow);
+        
+        totalForms.value = currentCount + 1;
+        calculateGrandTotal();
+    });
+
+    document.getElementById('invoice-form').addEventListener('input', function(e) {
+        if (e.target.name.includes('-quantity') || e.target.name.includes('-rate') || e.target.name.includes('-description')) {
+            calculateGrandTotal();
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-row-btn')) {
+            const rows = document.querySelectorAll('.item-row');
+            if (rows.length > 1) {
+                const row = e.target.closest('.item-row');
+                row.remove();
+                
+                const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+                const remainingRows = document.querySelectorAll('.item-row');
+                totalForms.value = remainingRows.length;
+                
+                remainingRows.forEach((row, index) => {
+                    row.querySelectorAll('input, select, textarea').forEach(input => {
+                        input.name = input.name.replace(/-\d+-/, `-${index}-`);
+                        input.id = input.id.replace(/-\d+-/, `-${index}-`);
+                    });
+                });
+
+                calculateGrandTotal();
+            } else {
+                var myModal = new bootstrap.Modal(document.getElementById('validationModal'));
+                myModal.show();
+            }
+        }
+    });
+
+    window.onload = calculateGrandTotal;
+</script>
+{% endblock %}

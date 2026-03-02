@@ -1,0 +1,223 @@
+{% extends 'invoices/base.html' %}
+
+{% block content %}
+<form method="POST" action="{% url 'settings_update' %}" id="settings-form">
+    {% csrf_token %}
+    
+    <div class="container-fluid px-0" id="settings-wrapper">
+        <div class="mb-4 animate-fade-in d-flex justify-content-between align-items-center">
+            <div>
+                <h4 class="fw-800 text-uppercase tracking-wider dashboard-title">
+                    <i class="fas fa-sliders-h me-2"></i>System Configuration
+                </h4>
+                <p class="text-muted small adaptive-muted">Manage your institution details and portal preferences.</p>
+            </div>
+            <button type="submit" class="btn btn-navy px-4 btn-ugc-action shadow-sm">
+                <i class="fas fa-save me-2"></i>Save All Changes
+            </button>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-3">
+                <div class="card border-0 shadow-sm p-2 adaptive-card" style="border-radius: 12px;">
+                    <div class="nav flex-column nav-pills" id="settingsTabs" role="tablist">
+                        <button class="nav-link active text-start mb-2" data-bs-toggle="pill" data-bs-target="#general" type="button">
+                            <i class="fas fa-university me-2"></i> Institution
+                        </button>
+                        <button class="nav-link text-start mb-2" data-bs-toggle="pill" data-bs-target="#financial" type="button">
+                            <i class="fas fa-money-bill-wave me-2"></i> Financial
+                        </button>
+                        <button class="nav-link text-start" data-bs-toggle="pill" data-bs-target="#account" type="button">
+                            <i class="fas fa-user-shield me-2"></i> Account
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                <div class="card border-0 shadow-sm adaptive-card" style="border-radius: 16px;">
+                    <div class="card-body p-4">
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="general">
+                                <h5 class="fw-bold mb-4 adaptive-text-main">Institution Details</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold adaptive-muted">Institution Name</label>
+                                        <input type="text" name="institution_name" class="form-control adaptive-input" value="{{ config.institution_name }}" placeholder="e.g. University College">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold adaptive-muted">Email Address</label>
+                                        <input type="email" name="institution_email" class="form-control adaptive-input" value="{{ config.institution_email }}">
+                                    </div>
+                                    <div class="col-md-12">
+                                        <label class="form-label small fw-bold adaptive-muted">Address on Invoices</label>
+                                        <textarea name="institution_address" class="form-control adaptive-input" rows="3">{{ config.institution_address }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="financial">
+                                <h5 class="fw-bold mb-4 adaptive-text-main">Financial Preferences</h5>
+                                <div class="mb-4">
+                                    <label class="form-label small fw-bold adaptive-muted">Base Currency</label>
+                                    <select name="base_currency" class="form-select adaptive-input">
+                                        <option value="GHS" {% if config.base_currency == 'GHS' %}selected{% endif %}>Ghana Cedi (GHS)</option>
+                                        <option value="USD" {% if config.base_currency == 'USD' %}selected{% endif %}>US Dollar (USD)</option>
+                                        <option value="GBP" {% if config.base_currency == 'GBP' %}selected{% endif %}>British Pound (GBP)</option>
+                                    </select>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input name="auto_ledger" class="form-check-input adaptive-switch" type="checkbox" {% if config.auto_generate_ledger %}checked{% endif %}>
+                                    <label class="form-check-label small adaptive-text-main">Auto-generate Ledger entries on payment</label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input name="auto_receipt" class="form-check-input adaptive-switch" type="checkbox" {% if config.auto_send_email_receipts %}checked{% endif %}>
+                                    <label class="form-check-label small adaptive-text-main">Send email receipts to students automatically</label>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="account">
+                                <h5 class="fw-bold mb-4 adaptive-text-main">My Account</h5>
+                                <div class="d-flex align-items-center p-3 border rounded mb-4 adaptive-border">
+                                    <div class="avatar-box me-3">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <div>
+                                        <p class="mb-0 fw-bold adaptive-text-main">{{ user.username }}</p>
+                                        <p class="mb-0 text-muted small adaptive-muted">Administrator</p>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#itSupportModal">
+                                    Change Password
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="modal fade" id="itSupportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content adaptive-card" style="border-radius: 16px; border: none;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold adaptive-text-main">Access Request</h5>
+                <button type="button" class="btn-close adaptive-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-3">
+                    <i class="fas fa-user-shield fa-3x text-warning"></i>
+                </div>
+                <h5 class="fw-bold adaptive-text-main">Security Policy</h5>
+                <p class="text-muted px-3 adaptive-muted">Direct password changes are disabled for standard users to ensure institutional security.</p>
+                <div class="alert adaptive-alert border-0 mb-0" style="border-radius: 12px;">
+                    <i class="fas fa-info-circle me-2"></i> Please contact the <strong>I.T. Department</strong> if you need to change your password.
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-navy w-100 btn-ugc-action" data-bs-dismiss="modal">Understood</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --ugc-navy: #002147;
+        --ugc-gold: #D4AF37;
+    }
+
+    [data-bs-theme="dark"] #settings-wrapper,
+    [data-bs-theme="dark"] .modal-content {
+        --text-main: var(--ugc-gold);
+        --input-bg: #1f2937;
+        --card-bg: #111827;
+    }
+
+    [data-bs-theme="dark"] .dashboard-title,
+    [data-bs-theme="dark"] .adaptive-text-main { color: var(--ugc-gold) !important; }
+    
+    [data-bs-theme="dark"] .adaptive-card { 
+        background-color: var(--card-bg) !important;
+        border: 1px solid rgba(255,255,255,0.05) !important;
+    }
+
+    [data-bs-theme="dark"] .adaptive-muted { color: #9ca3af !important; }
+
+    [data-bs-theme="dark"] .adaptive-input {
+        background-color: var(--input-bg) !important;
+        border-color: #374151 !important;
+        color: white !important;
+    }
+
+    [data-bs-theme="dark"] .adaptive-border { border-color: #374151 !important; }
+
+    [data-bs-theme="dark"] .adaptive-alert {
+        background-color: rgba(212, 175, 55, 0.1) !important;
+        color: var(--ugc-gold) !important;
+    }
+
+    [data-bs-theme="dark"] .adaptive-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
+    .fw-800 { font-weight: 800; }
+    .tracking-wider { letter-spacing: 1px; }
+    .dashboard-title { color: var(--ugc-navy); }
+
+    #settingsTabs .nav-link {
+        color: var(--ugc-navy);
+        font-weight: 600;
+        border-radius: 8px;
+        transition: 0.3s;
+    }
+
+    [data-bs-theme="dark"] #settingsTabs .nav-link { color: #cbd5e0; }
+
+    #settingsTabs .nav-link.active {
+        background: var(--ugc-navy) !important;
+        color: white !important;
+    }
+
+    [data-bs-theme="dark"] #settingsTabs .nav-link.active {
+        background: var(--ugc-gold) !important;
+        color: var(--ugc-navy) !important;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--ugc-gold);
+        box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25);
+    }
+
+    .btn-ugc-action {
+        background: var(--ugc-navy);
+        color: white;
+        border-radius: 10px;
+        padding: 10px;
+        border: none;
+        transition: 0.3s;
+    }
+
+    [data-bs-theme="dark"] .btn-ugc-action {
+        background: var(--ugc-gold);
+        color: var(--ugc-navy);
+        font-weight: bold;
+    }
+
+    .avatar-box {
+        background: var(--ugc-navy);
+        color: white;
+        width: 50px; height: 50px;
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    [data-bs-theme="dark"] .avatar-box {
+        background: var(--ugc-gold);
+        color: var(--ugc-navy);
+    }
+
+    .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+{% endblock %}

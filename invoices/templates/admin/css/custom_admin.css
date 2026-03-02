@@ -1,0 +1,20 @@
+/* Hide the navigation sidebar */
+#nav-sidebar, .main > .content {
+    display: block !important;
+}
+
+#nav-sidebar {
+    display: none !important;
+}
+
+/* Ensure the main content takes up 100% width */
+.main .content {
+    margin-left: 0 !important;
+    width: 100% !important;
+}
+
+/* Optional: Hide the toggle button if it still appears */
+.nav-sidebar-toggler {
+    display: none !important;
+    
+}

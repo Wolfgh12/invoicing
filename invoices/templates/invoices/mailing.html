@@ -1,0 +1,552 @@
+{% extends 'invoices/base.html' %}
+
+{% block content %}
+<div class="container-fluid" id="mailing-center-wrapper">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 animate-fade-in gap-3">
+        <div>
+            <h3 class="fw-bold text-navy mb-0 adaptive-text-main">Mailing Center</h3>
+            <p class="text-muted adaptive-muted mb-0">Manage and dispatch invoice notifications to students.</p>
+        </div>
+        <div class="d-flex flex-row flex-wrap gap-2 justify-content-md-end align-items-center">
+            <button type="button" class="btn btn-outline-secondary shadow-sm px-3 px-md-4 adaptive-outline-btn" data-bs-toggle="modal" data-bs-target="#fullHistoryModal">
+                <i class="fas fa-history me-2"></i> Full History
+            </button>
+            <button type="button" class="btn btn-outline-primary shadow-sm px-3 px-md-4 adaptive-outline-btn" data-bs-toggle="modal" data-bs-target="#composeEmailModal">
+                <i class="fas fa-edit me-2"></i> Compose Manual
+            </button>
+            
+            {% if pending_invoices %}
+            <a href="?send_all=true" class="btn btn-primary shadow-sm px-3 px-md-4">
+                <i class="fas fa-paper-plane me-2"></i> Send All Pending
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 mb-4" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4 adaptive-card">
+                <div class="card-header bg-white py-3 adaptive-card-header">
+                    <h6 class="mb-0 fw-bold text-navy adaptive-text-main">
+                        <i class="fas fa-clock me-2 text-warning"></i> Pending Dispatch
+                    </h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 responsive-table">
+                        <thead class="bg-light adaptive-thead d-none d-md-table-header-group">
+                            <tr>
+                                <th class="adaptive-thead-text">Student</th>
+                                <th class="adaptive-thead-text">Invoice #</th>
+                                <th class="adaptive-thead-text">Amount</th>
+                                <th class="text-end adaptive-thead-text">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTableBody">
+                            {% for inv in pending_invoices %}
+                            <tr class="adaptive-row pending-row">
+                                <td data-label="Student">
+                                    <div class="fw-bold adaptive-text-main">{{ inv.student.full_name }}</div>
+                                    <small class="text-muted adaptive-muted text-break">{{ inv.student.email }}</small>
+                                </td>
+                                <td data-label="Invoice #"><span class="badge bg-light text-navy border adaptive-badge">{{ inv.invoice_number }}</span></td>
+                                <td data-label="Amount" class="fw-bold adaptive-text-main">GHS {{ inv.grand_total|floatformat:2 }}</td>
+                                <td class="text-end action-cell">
+                                    <div class="btn-group">
+                                        <a href="{% url 'send_invoice_pdf_email' inv.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 adaptive-outline-btn">
+                                            <i class="fas fa-file-pdf me-1"></i> Send with PDF
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted adaptive-muted">
+                                    <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                                    <p>All caught up! No pending emails to send.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer adaptive-card-header border-0 d-flex justify-content-between align-items-center">
+                    <small class="text-muted adaptive-muted" id="pendingPaginationInfo">Showing 0 of 0</small>
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination pagination-sm mb-0" id="pendingNumberedPagination"></ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4" style="background-color: #000080; color: white; border-radius: 12px;">
+                <div class="card-body p-4">
+                    <h6 class="text-uppercase small fw-bold mb-3" style="letter-spacing: 1px;">Mail Status Summary</h6>
+                    <hr class="opacity-25">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Pending:</span>
+                        <span class="fw-bold">{{ pending_invoices.count }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-0">
+                        <span>Sent (Total Logs):</span>
+                        <span class="fw-bold">{{ email_history.count }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm adaptive-card mb-4" style="border-radius: 12px;">
+                <div class="card-body p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold text-navy small text-uppercase mb-0 adaptive-text-main">Recent Dispatch History</h6>
+                        <button type="button" class="btn btn-link text-muted p-0 small adaptive-muted" style="text-decoration: none; font-size: 0.7rem;" data-bs-toggle="modal" data-bs-target="#clearAllLogsModal">
+                            Clear All
+                        </button>
+                    </div>
+
+                    {% for log in email_history|slice:":10" %}
+                    <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom adaptive-border">
+                        <div class="d-flex align-items-center overflow-hidden">
+                            <div class="bg-light rounded p-2 me-3 adaptive-icon-bg">
+                                {% if log.email_type == 'INVOICE' or log.email_type == 'RECEIPT' %}
+                                    <i class="fas fa-file-pdf text-danger"></i>
+                                {% else %}
+                                    <i class="fas fa-envelope text-success"></i>
+                                {% endif %}
+                            </div>
+                            <div class="overflow-hidden">
+                                <p class="mb-0 small fw-bold text-truncate adaptive-text-main">{{ log.student.full_name }}</p>
+                                <small class="text-muted adaptive-muted" style="font-size: 0.7rem;">
+                                    {{ log.email_type|title }} • {{ log.date_sent|date:"M d, H:i" }}
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-link text-danger p-0 ms-2" data-bs-toggle="modal" data-bs-target="#deleteLogModal{{ log.id }}">
+                            <i class="fas fa-trash-alt small"></i>
+                        </button>
+                    </div>
+
+                    {% empty %}
+                    <p class="text-center text-muted small py-3 adaptive-muted">No emails sent yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="clearAllLogsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content adaptive-card">
+            <div class="modal-body p-4 text-center">
+                <i class="fas fa-trash-alt text-danger fa-2x mb-3"></i>
+                <h6 class="fw-bold adaptive-text-main">Clear Entire History?</h6>
+                <p class="adaptive-muted small mb-4">This will permanently delete all mailing records. This action cannot be undone.</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-light btn-sm px-3 adaptive-badge" data-bs-dismiss="modal">Cancel</button>
+                    <form action="{% url 'clear_all_logs' %}" method="POST" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm px-3">Clear Everything</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for log in email_history %}
+<div class="modal fade" id="deleteLogModal{{ log.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content adaptive-card">
+            <div class="modal-body p-4 text-center">
+                <i class="fas fa-exclamation-triangle text-warning fa-2x mb-3"></i>
+                <h6 class="fw-bold adaptive-text-main">Delete Record?</h6>
+                <p class="adaptive-muted small mb-4">Are you sure you want to remove the log for <strong>{{ log.student.full_name }}</strong>?</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-light btn-sm px-3 adaptive-badge" data-bs-dismiss="modal">Cancel</button>
+                    <form action="{% url 'delete_email_log' log.id %}" method="POST" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm px-3">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<div class="modal fade" id="fullHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content adaptive-card">
+            <div class="modal-header adaptive-card-header border-0 pb-0">
+                <div class="w-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="modal-title fw-bold text-navy adaptive-text-main">Complete Mailing History</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="input-group mb-3 shadow-sm">
+                        <span class="input-group-text bg-white border-end-0 adaptive-badge">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" id="logSearchInput" class="form-control border-start-0 adaptive-badge" placeholder="Search by student name, index, or email type...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 responsive-table" id="historyTable">
+                        <thead class="bg-light adaptive-thead sticky-top d-none d-md-table-header-group">
+                            <tr>
+                                <th class="ps-4 adaptive-thead-text">Recipient</th>
+                                <th class="adaptive-thead-text">Type</th>
+                                <th class="adaptive-thead-text">Date Sent</th>
+                                <th class="text-end pe-4 adaptive-thead-text">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            {% for log in email_history %}
+                            <tr class="adaptive-row log-row">
+                                <td class="ps-md-4" data-label="Recipient">
+                                    <div class="fw-bold adaptive-text-main search-target">{{ log.student.full_name }}</div>
+                                    <small class="adaptive-muted search-target">{{ log.student.index_number }}</small>
+                                </td>
+                                <td data-label="Type"><span class="badge bg-light text-navy border adaptive-badge search-target">{{ log.email_type }}</span></td>
+                                <td data-label="Date Sent" class="small adaptive-text-main">{{ log.date_sent|date:"M d, Y H:i" }}</td>
+                                <td class="text-end pe-md-4 action-cell">
+                                    <button type="button" class="btn btn-link text-danger p-0" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteLogModal{{ log.id }}">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-4 adaptive-muted">No records found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer adaptive-card-header border-0 d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
+                <small class="text-muted adaptive-muted" id="paginationInfo">Showing 0 of 0</small>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm mb-0" id="numberedPagination"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="composeEmailModal" tabindex="-1" aria-labelledby="composeEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content adaptive-card">
+            <div class="modal-header adaptive-card-header border-0">
+                <h5 class="modal-title fw-bold text-navy adaptive-text-main" id="composeEmailModalLabel">New Custom Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'compose_email' %}" method="POST" id="composeForm">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold adaptive-text-main">Select Student</label>
+                            <input list="studentDataList" id="studentSearchInput" class="form-control adaptive-badge" placeholder="Type name or index number to search..." required>
+                            <datalist id="studentDataList">
+                                {% for student in students %}
+                                    <option value="{{ student.full_name }} ({{ student.index_number }})" data-id="{{ student.id }}">
+                                {% endfor %}
+                            </datalist>
+                            <input type="hidden" name="student_id" id="hiddenStudentId">
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold adaptive-text-main">CC (Optional)</label>
+                            <input type="email" name="cc_email" id="ccEmailInput" class="form-control adaptive-badge" placeholder="e.g. parent@example.com or admin@school.com">
+                            <div class="form-text small adaptive-muted">Copies this message to an additional recipient.</div>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold adaptive-text-main">Subject</label>
+                            <input type="text" name="subject" class="form-control adaptive-badge" placeholder="e.g. Tuition Fee Reminder" required>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold adaptive-text-main">Message Body</label>
+                            <textarea name="message" rows="5" class="form-control adaptive-badge" placeholder="Write your message to the student here..." required></textarea>
+                        </div>
+
+                        <div class="col-md-12">
+                            <label class="form-label small fw-bold adaptive-text-main">Attachment Option (Optional PDF Intelligence)</label>
+                            <div class="d-flex flex-wrap gap-3 mt-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="attachment_type" id="attachNone" value="none" checked>
+                                    <label class="form-check-label small adaptive-text-main" for="attachNone">No Attachment</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="attachment_type" id="attachInvoice" value="invoice">
+                                    <label class="form-check-label small adaptive-text-main" for="attachInvoice">Attach Latest Invoice</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="attachment_type" id="attachReceipt" value="receipt">
+                                    <label class="form-check-label small adaptive-text-main" for="attachReceipt">Attach Latest Receipt</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-4">
+                    <button type="button" class="btn btn-light px-4 adaptive-badge" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-paper-plane me-2"></i> Send Message
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- PAGINATION HELPER FUNCTION ---
+    function setupPagination(allRowsSelector, itemsPerPage, infoId, paginationId, rowDisplayType = 'table-row') {
+        let currentPage = 1;
+        const allRows = Array.from(document.querySelectorAll(allRowsSelector));
+        let filteredRows = [...allRows];
+
+        function refresh() {
+            const totalRows = filteredRows.length;
+            const totalPages = Math.ceil(totalRows / itemsPerPage) || 1;
+            
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+
+            allRows.forEach(row => row.style.display = 'none');
+            filteredRows.slice(start, end).forEach(row => {
+                row.style.display = (window.innerWidth < 768) ? 'block' : rowDisplayType;
+            });
+
+            const infoEl = document.getElementById(infoId);
+            if(infoEl) infoEl.innerText = `Showing ${Math.min(start + 1, totalRows)} - ${Math.min(end, totalRows)} of ${totalRows}`;
+
+            const paginationContainer = document.getElementById(paginationId);
+            if(!paginationContainer) return;
+            paginationContainer.innerHTML = '';
+
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#">«</a>`;
+            prevLi.onclick = (e) => { e.preventDefault(); if(currentPage > 1) { currentPage--; refresh(); } };
+            paginationContainer.appendChild(prevLi);
+
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                li.onclick = (e) => { e.preventDefault(); currentPage = i; refresh(); };
+                paginationContainer.appendChild(li);
+            }
+
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages || totalRows === 0 ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#">»</a>`;
+            nextLi.onclick = (e) => { e.preventDefault(); if(currentPage < totalPages) { currentPage++; refresh(); } };
+            paginationContainer.appendChild(nextLi);
+        }
+
+        window.addEventListener('resize', refresh);
+        refresh();
+
+        return {
+            updateFilter: (query) => {
+                filteredRows = allRows.filter(row => {
+                    const targets = row.querySelectorAll('.search-target');
+                    let combinedText = "";
+                    targets.forEach(t => combinedText += t.innerText.toLowerCase() + " ");
+                    return combinedText.includes(query.toLowerCase());
+                });
+                currentPage = 1;
+                refresh();
+            },
+            refresh: refresh
+        };
+    }
+
+    // Initialize Pagination for both tables
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Pending Invoices (Main Table)
+        setupPagination('.pending-row', 6, 'pendingPaginationInfo', 'pendingNumberedPagination');
+
+        // 2. Full History Modal
+        const historyPager = setupPagination('.log-row', 8, 'paginationInfo', 'numberedPagination');
+
+        // History Search
+        const searchInput = document.getElementById('logSearchInput');
+        if(searchInput) {
+            searchInput.addEventListener('input', (e) => historyPager.updateFilter(e.target.value));
+        }
+    });
+
+    // --- COMPOSE EMAIL LOGIC ---
+    document.getElementById('studentSearchInput').addEventListener('input', function(e) {
+        const val = e.target.value;
+        const list = document.getElementById('studentDataList');
+        const opts = list.options;
+        const hiddenInput = document.getElementById('hiddenStudentId');
+        hiddenInput.value = ""; 
+        for (let i = 0; i < opts.length; i++) {
+            if (opts[i].value === val) {
+                hiddenInput.value = opts[i].getAttribute('data-id');
+                break;
+            }
+        }
+    });
+
+    const composeModal = document.getElementById('composeEmailModal');
+    composeModal.addEventListener('hidden.bs.modal', function () {
+        document.getElementById('composeForm').reset();
+        document.getElementById('hiddenStudentId').value = "";
+    });
+
+    document.getElementById('composeForm').addEventListener('submit', function(e) {
+        if (!document.getElementById('hiddenStudentId').value) {
+            e.preventDefault();
+            alert("Please select a valid student from the search results.");
+        }
+    });
+</script>
+
+<style>
+    :root {
+        --ugc-navy: #002147;
+        --ugc-gold: #D4AF37;
+    }
+
+    .text-navy { color: var(--ugc-navy); }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 33, 71, 0.02);
+    }
+
+    .btn-outline-primary { 
+        border-color: var(--ugc-navy); 
+        color: var(--ugc-navy); 
+    }
+
+    .btn-outline-primary:hover { 
+        background-color: var(--ugc-navy); 
+        border-color: var(--ugc-navy); 
+        color: white !important; 
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.4s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .sticky-top { position: sticky; top: 0; z-index: 1020; }
+
+    .pagination .page-link {
+        color: var(--ugc-navy);
+        border: 1px solid #dee2e6;
+    }
+    .pagination .page-item.active .page-link {
+        background-color: var(--ugc-navy);
+        border-color: var(--ugc-navy);
+        color: white;
+    }
+
+    /* --- MOBILE RESPONSIVE TABLE --- */
+    @media (max-width: 767.98px) {
+        .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+            display: block;
+            width: 100%;
+        }
+        
+        .responsive-table tr {
+            margin-bottom: 1rem;
+            border: 1px solid rgba(0, 33, 71, 0.1);
+            border-radius: 8px;
+            padding: 0.75rem;
+            position: relative;
+        }
+
+        .responsive-table td {
+            text-align: right;
+            padding: 0.4rem 0;
+            border: none;
+            position: relative;
+            padding-left: 45%;
+        }
+
+        .responsive-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 0;
+            width: 40%;
+            text-align: left;
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: var(--ugc-navy);
+            text-transform: uppercase;
+        }
+
+        .action-cell {
+            text-align: center !important;
+            padding-left: 0 !important;
+            border-top: 1px solid rgba(0,0,0,0.05) !important;
+            margin-top: 0.5rem;
+            padding-top: 0.75rem !important;
+        }
+
+        .action-cell::before { content: none !important; }
+        .action-cell .btn-group, .action-cell .btn { width: 100%; }
+        
+        [data-bs-theme="dark"] .responsive-table tr {
+            border-color: rgba(255,255,255,0.1);
+        }
+        [data-bs-theme="dark"] .responsive-table td::before {
+            color: #a0aec0;
+        }
+    }
+
+    /* Night Mode Adaptive Styles */
+    [data-bs-theme="dark"] .pagination .page-link {
+        background-color: #1f2937;
+        border-color: #374151;
+        color: #60a5fa;
+    }
+    [data-bs-theme="dark"] .pagination .page-item.active .page-link {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+    [data-bs-theme="dark"] .adaptive-text-main { color: #f8f9fa !important; }
+    [data-bs-theme="dark"] .adaptive-muted { color: #a0aec0 !important; }
+    [data-bs-theme="dark"] .adaptive-card { background-color: #111827 !important; border: 1px solid rgba(255,255,255,0.05) !important; }
+    [data-bs-theme="dark"] .adaptive-card-header { background-color: #1f2937 !important; border-bottom: 1px solid rgba(255,255,255,0.1) !important; }
+    [data-bs-theme="dark"] .adaptive-thead { background-color: #1f2937 !important; }
+    [data-bs-theme="dark"] .adaptive-thead-text { color: #9ca3af !important; border-bottom: none !important; }
+    [data-bs-theme="dark"] .adaptive-row:hover { background-color: rgba(255,255,255,0.02) !important; }
+    [data-bs-theme="dark"] .adaptive-badge { background-color: #1f2937 !important; color: white !important; border-color: rgba(255,255,255,0.1) !important; }
+    [data-bs-theme="dark"] .adaptive-icon-bg { background-color: #1f2937 !important; }
+    [data-bs-theme="dark"] .adaptive-border { border-bottom-color: rgba(255,255,255,0.1) !important; }
+    [data-bs-theme="dark"] .adaptive-outline-btn { color: #60a5fa !important; border-color: #60a5fa !important; }
+    [data-bs-theme="dark"] .adaptive-outline-btn:hover { background-color: #60a5fa !important; color: white !important; }
+    [data-bs-theme="dark"] .form-control { background-color: #1f2937; border-color: #374151; color: white; }
+    [data-bs-theme="dark"] .form-control::placeholder { color: #4b5563; }
+</style>
+{% endblock %}

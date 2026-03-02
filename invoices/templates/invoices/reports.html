@@ -1,0 +1,430 @@
+{% extends 'invoices/base.html' %}
+
+{% block content %}
+<div class="container-fluid px-0" id="finance-dashboard-wrapper">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 animate-fade-in no-print">
+        <h4 class="fw-800 mb-0 text-uppercase tracking-wider dashboard-title">
+            <i class="fas fa-chart-line me-2"></i>Financial Intelligence
+        </h4>
+        <div class="header-actions mt-3 mt-md-0 d-flex gap-2 ms-auto">
+            <a href="{% url 'export_report_pdf' %}" class="btn btn-outline-gold px-4 py-2 fw-bold shadow-sm">
+                <i class="fas fa-file-pdf me-2"></i>PDF
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 g-md-4 mb-4" id="printable-metrics">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 adaptive-card metric-card" style="border-left: 5px solid var(--ugc-gold) !important;">
+                <small class="text-muted fw-bold text-uppercase adaptive-muted">Total Billed</small>
+                <h3 class="fw-800 mt-1 mb-0 adaptive-text-main">GHS {{ total_billed|floatformat:2 }}</h3>
+                {% if yoy_growth %}
+                <div class="mt-2 small fw-bold {% if yoy_growth > 0 %}text-success{% else %}text-danger{% endif %}">
+                    <i class="fas fa-arrow-{% if yoy_growth > 0 %}up{% else %}down{% endif %} me-1"></i>
+                    {{ yoy_growth|floatformat:1 }}% vs Last Year
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 adaptive-card metric-card" style="border-left: 5px solid #198754 !important;">
+                <small class="text-muted fw-bold text-uppercase adaptive-muted">Total Collected</small>
+                <h3 class="fw-800 mt-1 mb-0" style="color: #198754;">GHS {{ total_collected|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 adaptive-card metric-card" style="border-left: 5px solid #dc3545 !important;">
+                <small class="text-muted fw-bold text-uppercase adaptive-muted">Outstanding</small>
+                <h3 class="fw-800 mt-1 mb-0" style="color: #dc3545;">GHS {{ outstanding|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="card border-0 shadow-sm p-3 adaptive-card metric-card" style="border-left: 5px solid var(--ugc-navy) !important;">
+                <small class="text-muted fw-bold text-uppercase adaptive-muted">Collection Rate</small>
+                <h3 class="fw-800 mt-1 mb-0 adaptive-text-main">{{ efficiency|floatformat:1 }}%</h3>
+                <div class="progress mt-2" style="height: 6px; background-color: rgba(0,0,0,0.05);">
+                    <div class="progress-bar" role="progressbar" style="width: {{ efficiency }}%; background-color: var(--ugc-gold);"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4 animate-fade-in" style="animation-delay: 0.1s;">
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm adaptive-card p-4 h-100 velocity-gradient">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="fw-800 text-uppercase small adaptive-text-main mb-1">Collection Velocity</h6>
+                        <p class="text-muted small mb-0">Avg. days from due date to payment</p>
+                    </div>
+                    <div class="p-2 rounded-circle {% if velocity_days >= 0 %}bg-success{% else %}bg-danger{% endif %} bg-opacity-10 no-print-bg">
+                        <i class="fas fa-tachometer-alt {% if velocity_days >= 0 %}text-success{% else %}text-danger{% endif %}"></i>
+                    </div>
+                </div>
+                <div class="text-center py-2">
+                    <h1 class="fw-900 mb-0 {% if velocity_days >= 0 %}text-success{% else %}text-danger{% endif %} velocity-text">
+                        {{ velocity_days|floatformat:1 }}
+                    </h1>
+                    <span class="fw-bold text-uppercase tracking-tighter">Days {% if velocity_days >= 0 %}Early{% else %}Late{% endif %}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+            <div class="card border-0 shadow-sm adaptive-card p-4 h-100 forecast-gradient">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="fw-800 text-uppercase small adaptive-text-main mb-1">30-Day Forecast</h6>
+                        <p class="text-muted small mb-0">Projected incoming cash</p>
+                    </div>
+                    <div class="p-2 rounded-circle bg-primary bg-opacity-10 no-print-bg">
+                        <i class="fas fa-calendar-check text-primary"></i>
+                    </div>
+                </div>
+                <div class="mt-auto">
+                    <h3 class="fw-800 mb-1 adaptive-text-main">GHS {{ expected_inflow|floatformat:2 }}</h3>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-soft-gold text-dark me-2">Expected by Next Month</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm adaptive-card h-100 chart-container-card">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h6 class="fw-800 text-uppercase small mb-0 adaptive-text-main">Collection Ratio</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center p-4">
+                    <canvas id="collectionChart" style="max-height: 250px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-sm adaptive-card h-100 chart-container-card">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center">
+                        <div>
+                            <h6 class="fw-800 text-uppercase small mb-0 adaptive-text-main">Debt Heatmap</h6>
+                            <small class="text-muted no-print">Click a bar to see debtors</small>
+                        </div>
+                        <span class="badge bg-danger rounded-pill px-3 py-2 shadow-sm mt-2 mt-sm-0" style="font-size: 0.75rem;">
+                            Total Unpaid: GHS {{ outstanding|floatformat:2 }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <canvas id="debtHeatmapChart" style="max-height: 250px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-sm adaptive-card h-100 chart-container-card">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h6 class="fw-800 text-uppercase small mb-0 adaptive-text-main">Revenue by Top Students</h6>
+                </div>
+                <div class="card-body p-4">
+                    <canvas id="studentBarChart" style="max-height: 250px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm adaptive-card h-100 chart-container-card">
+                 <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h6 class="fw-800 text-uppercase small mb-0 adaptive-text-main"><i class="fas fa-crown text-warning me-2"></i>Top Ranking</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <tbody>
+                                {% for student in top_students %}
+                                <tr class="adaptive-row">
+                                    <td class="fw-600 adaptive-text-main">{{ student.full_name }}</td>
+                                    <td class="text-end px-4 fw-bold text-success">GHS {{ student.revenue|floatformat:2 }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="2" class="text-center py-3 text-muted">No revenue data.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm overflow-hidden adaptive-card chart-container-card">
+                <div class="card-header bg-transparent border-0 pt-4 px-4">
+                    <h6 class="fw-800 text-uppercase small mb-0 adaptive-text-main"><i class="fas fa-tags me-2"></i>Service Performance Breakdown</h6>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr class="text-muted small">
+                                    <th class="border-0">SERVICE</th>
+                                    <th class="text-center border-0">COUNT</th>
+                                    <th class="text-end border-0">TOTAL GROSS BILLED</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in service_stats %}
+                                <tr class="adaptive-row">
+                                    <td class="fw-600 adaptive-text-main">{{ stat.description|default:"General Item" }}</td>
+                                    <td class="text-center">
+                                        <span class="badge adaptive-badge">{{ stat.usage_count }}</span>
+                                    </td>
+                                    <td class="text-end fw-bold adaptive-text-main">GHS {{ stat.total_value|floatformat:2 }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-3 text-muted">No billing items found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="border-top border-2">
+                                    <td colspan="2" class="fw-800 text-uppercase small adaptive-text-main pt-3">Total Gross Billed</td>
+                                    <td class="text-end fw-900 adaptive-text-main pt-3" style="font-size: 1.1rem; color: var(--ugc-gold) !important;">
+                                        GHS {{ total_billed|floatformat:2 }}
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade no-print" id="debtDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content adaptive-card shadow-lg" style="border-radius: 16px; border: none;">
+            <div class="modal-header border-0 pt-4 px-4">
+                <h5 class="fw-800 adaptive-text-main mb-0" id="debtModalTitle">Debt Breakdown</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div id="modalLoading" class="text-center py-4 d-none">
+                    <div class="spinner-border text-gold" role="status"></div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle" id="debtDetailTable">
+                        <thead>
+                            <tr class="small text-muted">
+                                <th>STUDENT</th>
+                                <th class="text-end">AMOUNT OWED</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debtDetailBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="chart-data" type="application/json">{{ chart_data_json|safe }}</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dataElement = document.getElementById('chart-data');
+        const chartData = JSON.parse(dataElement.textContent);
+        
+        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const labelColor = isDark ? '#9ca3af' : '#6b7280';
+        const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+        const sharedOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false, 
+            devicePixelRatio: 2 
+        };
+
+        // 1. Collection Ratio Chart
+        new Chart(document.getElementById('collectionChart'), {
+            type: 'doughnut',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    data: chartData.values,
+                    backgroundColor: ['#198754', '#dc3545'],
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                ...sharedOptions,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: labelColor, usePointStyle: true, padding: 15, font: { weight: '600', size: 10 } }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+
+        // 2. Debt Heatmap Chart
+        new Chart(document.getElementById('debtHeatmapChart'), {
+            type: 'bar',
+            data: {
+                labels: chartData.heatmap_labels,
+                datasets: [{
+                    label: 'Unpaid Balance (GHS)',
+                    data: chartData.heatmap_values,
+                    backgroundColor: '#dc3545',
+                    hoverBackgroundColor: '#a71d2a',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                ...sharedOptions,
+                indexAxis: 'y',
+                onClick: (event, elements, chart) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const label = chart.data.labels[index];
+                        window.fetchDebtDetails(label);
+                    }
+                },
+                onHover: (event, chartElement) => {
+                    event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 9 } } },
+                    y: { grid: { display: false }, ticks: { color: labelColor, autoSkip: false, font: { size: 9 } } }
+                },
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function() {
+                                return 'Click to view debtors';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // 3. Top Students Bar Chart
+        new Chart(document.getElementById('studentBarChart'), {
+            type: 'bar',
+            data: {
+                labels: chartData.student_names,
+                datasets: [{
+                    label: 'Revenue (GHS)',
+                    data: chartData.student_revenue,
+                    backgroundColor: '#D4AF37',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                ...sharedOptions,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: labelColor, font: { size: 9 } } },
+                    x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 9 } } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        window.fetchDebtDetails = function(category) {
+            const modalElement = document.getElementById('debtDetailModal');
+            const modal = new bootstrap.Modal(modalElement);
+            const body = document.getElementById('debtDetailBody');
+            const loading = document.getElementById('modalLoading');
+            document.getElementById('debtModalTitle').innerText = `Debtors: ${category}`;
+            body.innerHTML = '';
+            loading.classList.remove('d-none');
+            modal.show();
+            fetch(`/reports/debt-detail/?description=${encodeURIComponent(category)}`)
+                .then(res => res.json())
+                .then(data => {
+                    loading.classList.add('d-none');
+                    if (data.debtors && data.debtors.length > 0) {
+                        data.debtors.forEach(d => {
+                            body.innerHTML += `<tr><td class="fw-600 adaptive-text-main">${d.student}</td><td class="text-end text-danger fw-bold">GHS ${parseFloat(d.owed).toFixed(2)}</td></tr>`;
+                        });
+                    } else {
+                        body.innerHTML = '<tr><td colspan="2" class="text-center text-muted">No data found</td></tr>';
+                    }
+                })
+                .catch(err => {
+                    loading.classList.add('d-none');
+                    body.innerHTML = '<tr><td colspan="2" class="text-center text-danger">Error loading data</td></tr>';
+                });
+        };
+    });
+</script>
+
+<style>
+    :root {
+        --card-bg: #ffffff;
+        --ugc-navy: #002147;
+        --ugc-gold: #D4AF37;
+    }
+
+    .velocity-text { font-size: 3.5rem; }
+    @media (max-width: 576px) {
+        .velocity-text { font-size: 2.5rem; }
+        .dashboard-title { font-size: 1.1rem; }
+    }
+
+    @media print {
+        @page { size: landscape; margin: 0.5cm; }
+        body { 
+            background: #fff !important; 
+            color: #000 !important; 
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+        }
+        .no-print { display: none !important; }
+        .container-fluid { width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+        
+        .row { display: flex !important; flex-wrap: wrap !important; }
+        .col-md-3 { width: 25% !important; flex: 0 0 25% !important; }
+        .col-md-6 { width: 50% !important; flex: 0 0 50% !important; }
+        .col-lg-4 { width: 33.33% !important; flex: 0 0 33.33% !important; }
+        .col-lg-8 { width: 66.66% !important; flex: 0 0 66.66% !important; }
+        
+        .card { border: 1px solid #eee !important; box-shadow: none !important; break-inside: avoid; }
+        canvas { width: 100% !important; height: auto !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
+
+    [data-bs-theme="dark"] #finance-dashboard-wrapper { --card-bg: #111827; }
+    .fw-900 { font-weight: 900; }
+    .fw-800 { font-weight: 800; }
+    .fw-600 { font-weight: 600; }
+    .tracking-wider { letter-spacing: 1px; }
+    .bg-soft-gold { background-color: rgba(212, 175, 55, 0.2); }
+    .velocity-gradient { background: linear-gradient(135deg, var(--card-bg) 0%, rgba(212, 175, 55, 0.05) 100%) !important; border-radius: 16px; }
+    .forecast-gradient { background: linear-gradient(135deg, var(--card-bg) 0%, rgba(0, 33, 71, 0.05) 100%) !important; border-radius: 16px; }
+    .btn-gold { background-color: var(--ugc-gold); color: #fff; border: none; transition: 0.3s; }
+    .btn-gold:hover { background-color: #b8962d; color: #fff; transform: translateY(-2px); }
+    .btn-outline-gold { border: 2px solid var(--ugc-gold); color: var(--ugc-gold); transition: 0.3s; }
+    [data-bs-theme="dark"] .dashboard-title, [data-bs-theme="dark"] .adaptive-text-main { color: var(--ugc-gold) !important; }
+    .adaptive-card { background: var(--card-bg); transition: 0.3s; }
+    .chart-container-card { border-radius: 16px; }
+    [data-bs-theme="dark"] .adaptive-card { background-color: var(--card-bg) !important; border: 1px solid rgba(212, 175, 55, 0.1) !important; }
+    [data-bs-theme="dark"] .adaptive-muted { color: #9ca3af !important; }
+    [data-bs-theme="dark"] .adaptive-row { border-color: #374151 !important; }
+    [data-bs-theme="dark"] .adaptive-badge { background-color: #1f2937 !important; color: var(--ugc-gold) !important; }
+    .metric-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
+    .adaptive-badge { background-color: #f8f9fa; color: #212529; font-weight: 700; padding: 0.5em 1em; border-radius: 6px; }
+    .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .dashboard-title { color: var(--ugc-navy); }
+</style>
+{% endblock %}

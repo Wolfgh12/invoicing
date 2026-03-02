@@ -1,0 +1,324 @@
+{% extends 'invoices/base.html' %}
+{% load static %}
+
+{% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: ['selector', '[data-bs-theme="dark"]'], 
+    theme: {
+      extend: {
+        colors: {
+          navy: 'var(--color-navy)',
+          gold: '#D4AF37',
+          'navy-deep': 'var(--color-navy-deep)',
+        },
+        borderRadius: {
+          'xl-plus': '1.25rem',
+          '2xl-plus': '1.75rem',
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+    /* --- COLOR VARIABLE ENGINE --- */
+    :root {
+        --color-navy: #002147;
+        --color-navy-deep: #001630;
+        --bg-main-card: #ffffff;
+        --text-student: #002147;
+    }
+
+    [data-bs-theme="dark"] {
+        --color-navy: #D4AF37; /* Navy text/elements turn Gold */
+        --color-navy-deep: #000b18;
+        --bg-main-card: #001630;
+        --text-student: #ffffff; /* Names turn White */
+    }
+
+    /* --- LAYOUT FIXES --- */
+    html, body { height: auto !important; overflow-y: auto !important; }
+    
+    /* Ensure the main card background actually changes */
+    .main-dashboard-card { background-color: var(--bg-main-card) !important; }
+
+    /* Student Name & Values Visibility */
+    .student-name-text { color: var(--text-student) !important; }
+    [data-bs-theme="dark"] .text-gray-400 { color: rgba(212, 175, 55, 0.6) !important; }
+
+    /* Search & Inputs */
+    .search-input {
+        width: 100% !important;
+        padding: 1.25rem 1rem 1.25rem 3.5rem !important;
+        background-color: #fcfdfe !important;
+        border: 2px solid #f1f3f5 !important;
+        border-radius: 16px 0 0 16px !important;
+        color: #002147 !important;
+        font-weight: 600 !important;
+    }
+    [data-bs-theme="dark"] .search-input {
+        background-color: #000b18 !important;
+        border-color: rgba(212, 175, 55, 0.3) !important;
+        color: white !important;
+    }
+
+    .search-btn {
+        padding: 0 1.5rem !important;
+        background-color: #D4AF37 !important;
+        color: #002147 !important;
+        font-weight: 800 !important;
+        border-radius: 0 16px 16px 0 !important;
+        border: 2px solid #D4AF37 !important;
+    }
+
+    /* Animations */
+    .animate-page-in { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-container { transition: opacity 0.5s ease, transform 0.5s ease; }
+    .message-fade-out { opacity: 0; transform: translateY(-20px); }
+</style>
+
+<div class="h-auto py-4 md:py-8 px-4 pb-24 animate-page-in transition-colors duration-500">
+    <div class="w-full max-w-6xl mx-auto">
+        
+        {% if messages %}
+            <div id="django-messages">
+                {% for message in messages %}
+                <div class="message-container mb-6 p-4 bg-emerald-500 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg flex items-center">
+                    <i class="fas fa-check-circle mr-3"></i> {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="mb-8 text-center">
+            <div class="mb-3 flex justify-center">
+                <img src="{% static '1.png' %}" alt="UGC Logo" class="h-24 md:h-32 w-auto object-contain transition-transform hover:scale-105">
+            </div>
+            <h2 class="text-xl md:text-2xl font-black text-navy dark:text-white tracking-tight">
+                UGC <span class="text-gold">Invoice Dashboard</span>
+            </h2>
+        </div>
+
+        <div class="main-dashboard-card rounded-2xl-plus shadow-2xl overflow-hidden border border-white dark:border-white/10 transition-colors duration-500">
+            <div class="p-6 md:p-12">
+                
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
+                    <div class="flex items-center space-x-4">
+                        <div class="h-16 w-16 bg-navy-deep rounded-2xl flex items-center justify-center border dark:border-gold/30">
+                            <i class="fas fa-list-check text-gold text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-black text-navy dark:text-white tracking-tight">Payment Records</h1>
+                            <p class="text-gray-400 text-xs uppercase tracking-wide">Financial Database</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <button id="bulkDeleteBtn" type="button" onclick="openModal('bulk')" class="hidden items-center justify-center px-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[2px] shadow-lg transition-all">
+                            <i class="fas fa-trash-alt mr-2"></i> Delete Selected
+                        </button>
+
+                        <a href="{% url 'create_invoice' %}" class="flex items-center justify-center px-8 py-4 bg-emerald-500 hover:bg-navy text-white rounded-xl font-black text-[10px] uppercase tracking-[2px] shadow-lg transition-all active:scale-95">
+                            <i class="fas fa-plus-circle mr-2"></i> Create New
+                        </a>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+                    <div class="p-6 bg-[#fcfdfe] dark:bg-navy-deep border-2 border-[#f1f3f5] dark:border-white/10 rounded-xl-plus">
+                        <p class="text-[9px] font-black text-gray-400 dark:text-gold uppercase tracking-widest mb-2">Collected</p>
+                        <h3 class="text-lg font-black text-navy dark:text-white">GHS {{ total_revenue|floatformat:2 }}</h3>
+                    </div>
+                    <div class="p-6 bg-[#fcfdfe] dark:bg-navy-deep border-2 border-[#f1f3f5] dark:border-white/10 rounded-xl-plus">
+                        <p class="text-[9px] font-black text-gray-400 dark:text-red-400 uppercase tracking-widest mb-2">Owed</p>
+                        <h3 class="text-lg font-black text-red-600 dark:text-red-500">GHS {{ pending_amount|floatformat:2 }}</h3>
+                    </div>
+                    <div class="p-6 bg-red-500 rounded-xl-plus shadow-lg shadow-red-500/20">
+                        <p class="text-[9px] font-black text-white/80 uppercase tracking-widest mb-2">Unpaid</p>
+                        <h3 class="text-lg font-black text-white">{{ pending_count }}</h3>
+                    </div>
+                </div>
+
+                <div class="relative group mb-10">
+                    <form method="GET" class="flex">
+                        <div class="relative flex-grow">
+                            <div class="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-gray-300 dark:text-gold">
+                                <i class="fas fa-search"></i>
+                            </div>
+
+                            <input type="text" name="q" id="searchInput" value="{{ query|default:'' }}" class="search-input" placeholder="Find a student...">
+
+                            {% if query %}
+                            <a href="?" class="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-red-500 transition-colors">
+                                <i class="fas fa-times-circle text-lg"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="search-btn">Search</button>
+                    </form>
+
+                    {% if query and not invoices %}
+                    <div class="mt-6 p-8 text-center border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl-plus animate-page-in">
+                        <div class="inline-flex items-center justify-center h-12 w-12 rounded-full bg-rose-500/10 text-rose-500 mb-3">
+                            <i class="fas fa-search-minus text-xl"></i>
+                        </div>
+                        <h3 class="text-navy dark:text-white font-black uppercase text-[10px] tracking-widest">No results found</h3>
+                        <p class="text-gray-400 text-xs mt-1">No data matches your query "<span class="text-gold font-bold">{{ query }}</span>"</p>
+                        <a href="?" class="mt-4 inline-block text-gold hover:underline text-[10px] font-black uppercase tracking-wider">Clear all filters</a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <form id="bulkDeleteForm" action="{% url 'bulk_delete_invoices' %}" method="POST">
+                    {% csrf_token %}
+                    <div class="overflow-x-auto rounded-xl-plus border border-gray-100 dark:border-white/10">
+                        <table class="w-full text-left min-w-[700px]">
+                            <thead class="bg-[#fcfdfe] dark:bg-navy-deep border-b-2 border-gray-100 dark:border-white/10">
+                                <tr class="text-[10px] font-black text-navy dark:text-gold uppercase tracking-widest">
+                                    <th class="px-6 py-5 w-10">
+                                        <input type="checkbox" id="selectAll" class="accent-gold h-4 w-4">
+                                    </th>
+                                    <th class="px-8 py-5">Ref No.</th>
+                                    <th class="px-8 py-5">Type</th>
+                                    <th class="px-8 py-5">Student Info</th>
+                                    <th class="px-8 py-5">Total</th>
+                                    <th class="px-8 py-5">Status</th>
+                                    <th class="px-8 py-5 text-center">Manage</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-50 dark:divide-white/10">
+                                {% for inv in invoices %}
+                                <tr class="hover:bg-[#fcfdfe] dark:hover:bg-white/5 transition-all">
+                                    <td class="px-6 py-6">
+                                        <input type="checkbox" name="invoice_ids" value="{{ inv.id }}" class="invoice-checkbox accent-gold h-4 w-4">
+                                    </td>
+                                    <td class="px-8 py-6 font-bold text-gray-500">#{{ inv.invoice_number }}</td>
+                                    
+                                    <td class="px-8 py-6">
+                                        <span class="px-2 py-1 bg-navy/5 dark:bg-gold/10 text-navy dark:text-gold rounded font-bold text-[9px] uppercase tracking-wider">
+                                            {{ inv.invoice_type|default:"Fees" }}
+                                        </span>
+                                    </td>
+
+                                    <td class="px-8 py-6">
+                                        <div class="flex items-center space-x-4">
+                                            {% if inv.student.profile_image %}
+                                                <div class="h-10 w-10 rounded-full overflow-hidden border-2 border-navy-deep dark:border-gold/30">
+                                                    <img src="{{ inv.student.profile_image.url }}" alt="{{ inv.student.full_name }}" class="h-full w-full object-cover">
+                                                </div>
+                                            {% else %}
+                                                <div class="h-10 w-10 rounded-full bg-navy-deep text-gold flex items-center justify-center font-black">
+                                                    {{ inv.student.full_name|slice:":1"|upper }}
+                                                </div>
+                                            {% endif %}
+                                            <div>
+                                                <p class="student-name-text text-sm font-black">{{ inv.student.full_name }}</p>
+                                                <p class="text-[10px] text-gray-400">{{ inv.student.index_number }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-8 py-6">
+                                        <p class="font-black text-navy dark:text-white text-sm">GHS {{ inv.grand_total|floatformat:2 }}</p>
+                                    </td>
+                                    <td class="px-8 py-6">
+                                        {% if inv.is_paid %}
+                                        <span class="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[9px] font-black uppercase">Paid</span>
+                                        {% else %}
+                                        <span class="px-3 py-1 bg-rose-500/10 text-rose-500 rounded-full text-[9px] font-black uppercase">Unpaid</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-8 py-6">
+                                        <div class="flex justify-center space-x-2">
+                                            <a href="{% url 'generate_pdf' inv.id %}" target="_blank" class="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-100 dark:border-white/10 text-gold hover:bg-gold hover:text-navy transition-all">
+                                                <i class="fas fa-file-pdf"></i>
+                                            </a>
+                                            <button type="button" onclick="openModal('single', '{{ inv.id }}')" class="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-100 dark:border-white/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+                                                <i class="fas fa-trash-can"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+
+                <div class="mt-12 border-t border-gray-100 dark:border-white/10 pt-8">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-[2px]">
+                            Records {{ invoices.start_index }} - {{ invoices.end_index }} of {{ total_count }}
+                        </div>
+                        
+                        {% include 'invoices/pagination.html' with page_obj=invoices query=query %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="deleteModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-navy/80 backdrop-blur-sm"></div>
+    <div class="relative bg-white dark:bg-navy-deep w-full max-w-md rounded-2xl-plus p-8 text-center animate-page-in">
+        <h3 class="text-2xl font-black text-navy dark:text-white mb-8">Confirm Deletion?</h3>
+        <div class="flex space-x-4">
+            <button onclick="closeModal()" class="flex-1 px-6 py-4 bg-gray-100 dark:bg-navy text-navy dark:text-white rounded-xl font-black text-[10px] uppercase">Cancel</button>
+            <button id="confirmDeleteBtn" class="flex-1 px-6 py-4 bg-red-500 text-white rounded-xl font-black text-[10px] uppercase">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<form id="singleDeleteForm" method="POST" class="hidden">{% csrf_token %}</form>
+
+<script>
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.invoice-checkbox');
+    const bulkBtn = document.getElementById('bulkDeleteBtn');
+    const modal = document.getElementById('deleteModal');
+    let currentDeleteId = null;
+    let deleteMode = 'single';
+
+    selectAll.addEventListener('change', (e) => {
+        checkboxes.forEach(cb => cb.checked = e.target.checked);
+        toggleBulkButton();
+    });
+    checkboxes.forEach(cb => cb.addEventListener('change', toggleBulkButton));
+    function toggleBulkButton() {
+        const count = document.querySelectorAll('.invoice-checkbox:checked').length;
+        bulkBtn.classList.toggle('hidden', count === 0);
+        bulkBtn.classList.toggle('flex', count > 0);
+    }
+    function openModal(mode, id = null) {
+        deleteMode = mode; currentDeleteId = id;
+        modal.classList.remove('hidden'); modal.classList.add('flex');
+    }
+    function closeModal() { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+        if (deleteMode === 'bulk') document.getElementById('bulkDeleteForm').submit();
+        else {
+            const form = document.getElementById('singleDeleteForm');
+            form.action = `/delete/${currentDeleteId}/`; form.submit();
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const messages = document.querySelectorAll('.message-container');
+        messages.forEach(msg => {
+            setTimeout(() => {
+                msg.classList.add('message-fade-out');
+                setTimeout(() => msg.remove(), 500); 
+            }, 3000); 
+        });
+    });
+</script>
+{% endblock %}

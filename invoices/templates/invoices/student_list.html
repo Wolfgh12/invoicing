@@ -1,0 +1,293 @@
+{% extends 'invoices/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4" id="student-db-wrapper">
+    <div class="d-flex justify-content-between align-items-center mb-5 animate-fade-in">
+        <div>
+            <h2 class="fw-bold text-navy mb-1 header-title" style="letter-spacing: -1px;">Student Database</h2>
+            <p class="text-muted mb-0 adaptive-muted">Manage institutional records and academic profiles.</p>
+        </div>
+        <a href="{% url 'add_student' %}" class="btn btn-ugc px-4 py-2 shadow-sm rounded-pill d-flex align-items-center fw-bold">
+            <i class="fas fa-user-plus me-2"></i> Register Student
+        </a>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="GET" action="{% url 'student_list' %}">
+                <div class="input-group search-group shadow-sm rounded-pill overflow-hidden bg-white border adaptive-search-bg">
+                    <span class="input-group-text border-0 bg-transparent ps-4">
+                        <i class="fas fa-search text-muted"></i>
+                    </span>
+                    <input type="text" name="q" class="form-control border-0 py-2 bg-transparent adaptive-input" 
+                           placeholder="Search Name, Index, or Email..." value="{{ query|default:'' }}">
+                    <button class="btn btn-gold-search px-4 me-1 my-1 rounded-pill fw-bold" type="submit">Search</button>
+                </div>
+            </form>
+        </div>
+        {% if query %}
+        <div class="col-md-2 d-flex align-items-center">
+            <a href="{% url 'student_list' %}" class="text-decoration-none text-muted fw-bold small adaptive-muted">
+                <i class="fas fa-times-circle me-1"></i> Clear Results
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden animate-slide-up adaptive-card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr class="bg-light adaptive-thead">
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Student Info</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Index Number</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Level</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Program</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr class="adaptive-row clickable-row" 
+                            data-href="{% url 'student_detail' student.id %}" 
+                            style="cursor: pointer;">
+                            <td class="px-4 py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-container me-3">
+                                        {% if student.profile_image %}
+                                            <img src="{{ student.profile_image.url }}" alt="{{ student.full_name }}" 
+                                                 class="avatar-circle shadow-sm object-cover border border-2 border-gold-light">
+                                        {% else %}
+                                            <div class="avatar-circle shadow-sm adaptive-avatar">
+                                                {{ student.full_name|slice:":1"|upper }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-navy h6 mb-0 adaptive-text-main">{{ student.full_name }}</div>
+                                        <div class="small text-muted adaptive-muted">{{ student.email|default:"No email provided" }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 fw-medium text-secondary">
+                                <code class="adaptive-code px-2 py-1 rounded">{{ student.index_number }}</code>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="adaptive-muted small fw-bold">Level {{ student.level }}</span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="badge program-badge px-3 py-2">
+                                    {{ student.program|default:"General" }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <div class="d-flex justify-content-center gap-2">
+                                    <a href="{% url 'edit_student' student.id %}" class="btn btn-action btn-edit stop-propagation" title="Edit Student">
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <button class="btn btn-action btn-delete stop-propagation" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteModal" 
+                                            data-id="{{ student.id }}" 
+                                            data-name="{{ student.full_name }}"
+                                            title="Delete Student">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="py-4">
+                                    <i class="fas fa-user-slash fa-3x mb-3 text-light-gray"></i>
+                                    <p class="text-muted fw-bold adaptive-muted">{% if query %}No results for "{{ query }}"{% else %}The database is empty.{% endif %}</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if students.has_other_pages %}
+    <div class="mt-5 border-top pt-4">
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-4 animate-fade-in">
+            <div class="text-uppercase fw-bold text-muted tracking-wider" style="font-size: 10px; letter-spacing: 2px;">
+                Showing {{ students.start_index }} - {{ students.end_index }} of {{ students.paginator.count }} Students
+            </div>
+            
+            {% include 'invoices/pagination.html' with page_obj=students %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4 adaptive-card">
+            <div class="modal-body text-center p-5">
+                <div class="text-danger mb-4">
+                    <i class="fas fa-exclamation-circle fa-4x"></i>
+                </div>
+                <h3 class="fw-bold text-navy mb-2 adaptive-text-main">Are you sure?</h3>
+                <p class="text-muted adaptive-muted">You are about to delete <strong id="studentName"></strong>. This action cannot be undone.</p>
+                <div class="d-flex justify-content-center gap-2 mt-4">
+                    <button type="button" class="btn btn-light px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteForm" method="POST" action="">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger px-4 rounded-pill shadow-sm">Delete Student</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --ugc-navy: #002147;
+        --ugc-gold: #D4AF37;
+        --border-gold-light: rgba(212, 175, 55, 0.3);
+    }
+
+    /* --- CLICKABLE ROW LOGIC --- */
+    .clickable-row:hover {
+        background-color: rgba(0, 33, 71, 0.02) !important;
+        transform: scale(1.002);
+        transition: all 0.2s ease-in-out;
+    }
+
+    /* --- DARK MODE HIJACK --- */
+    [data-bs-theme="dark"] #student-db-wrapper,
+    [data-bs-theme="dark"] .modal-content {
+        --text-main: var(--ugc-gold) !important;
+        --bs-body-color: var(--ugc-gold) !important;
+    }
+
+    [data-bs-theme="dark"] .header-title,
+    [data-bs-theme="dark"] .adaptive-text-main { color: var(--ugc-gold) !important; }
+    
+    [data-bs-theme="dark"] .adaptive-muted { color: #a0aec0 !important; }
+    
+    [data-bs-theme="dark"] .adaptive-card { 
+        background-color: #111827 !important; 
+        border: 1px solid rgba(212, 175, 55, 0.2) !important; 
+    }
+
+    [data-bs-theme="dark"] .adaptive-thead { 
+        background-color: #1f2937 !important; 
+    }
+    
+    [data-bs-theme="dark"] .adaptive-thead th { color: #9ca3af !important; }
+    
+    [data-bs-theme="dark"] .adaptive-row:hover { 
+        background-color: rgba(212, 175, 55, 0.08) !important; 
+    }
+
+    [data-bs-theme="dark"] .adaptive-code { 
+        background-color: #1f2937 !important; 
+        color: var(--ugc-gold) !important; 
+    }
+
+    [data-bs-theme="dark"] .adaptive-search-bg { 
+        background-color: #1f2937 !important; 
+        border-color: rgba(212, 175, 55, 0.2) !important; 
+    }
+
+    [data-bs-theme="dark"] .adaptive-input { color: white !important; }
+
+    [data-bs-theme="dark"] .program-badge { 
+        background-color: rgba(212, 175, 55, 0.1); 
+        color: var(--ugc-gold); 
+        border-color: var(--ugc-gold); 
+    }
+
+    [data-bs-theme="dark"] .adaptive-avatar {
+        background-color: var(--ugc-gold) !important;
+        color: var(--ugc-navy) !important;
+    }
+
+    [data-bs-theme="dark"] .btn-edit { background: #1f2937; color: #cbd5e0; }
+
+    /* --- STANDARD STYLES --- */
+    .text-navy { color: var(--ugc-navy); }
+    
+    .btn-gold-search { 
+        background-color: var(--ugc-gold); 
+        color: white; 
+        border: none;
+        transition: all 0.3s; 
+    }
+    .btn-gold-search:hover { background-color: #b8962e; transform: translateY(-1px); }
+    
+    .btn-ugc { background: var(--ugc-gold); color: white; border: none; transition: all 0.3s; }
+    .btn-ugc:hover { background: #b8962e; transform: translateY(-1px); }
+
+    .avatar-circle {
+        width: 42px; height: 42px;
+        background: var(--ugc-navy);
+        color: var(--ugc-gold);
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 50%; font-weight: bold; font-size: 1.1rem;
+    }
+    
+    .object-cover { object-fit: cover; }
+
+    .program-badge {
+        background-color: rgba(0, 33, 71, 0.05);
+        color: var(--ugc-navy);
+        font-weight: 600; font-size: 0.75rem;
+        border: 1px solid rgba(0, 33, 71, 0.1);
+        border-radius: 8px;
+    }
+
+    .btn-action {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        display: inline-flex; align-items: center; justify-content: center;
+        transition: all 0.2s; border: none;
+        position: relative;
+        z-index: 5;
+    }
+    .btn-edit { background: #f0f4f8; color: #4a5568; }
+    .btn-edit:hover { background: var(--ugc-navy); color: white; }
+    .btn-delete { background: #fff5f5; color: #e53e3e; }
+    .btn-delete:hover { background: #e53e3e; color: white; }
+
+    .fs-xs { font-size: 0.7rem; }
+    .text-light-gray { color: #e2e8f0; }
+
+    .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+    .animate-slide-up { animation: slideUp 0.6s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rows = document.querySelectorAll('.clickable-row');
+        rows.forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (!e.target.closest('.stop-propagation')) {
+                    window.location = this.dataset.href;
+                }
+            });
+        });
+    });
+
+    const deleteModal = document.getElementById('deleteModal')
+    deleteModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget
+        const studentId = button.getAttribute('data-id')
+        const studentName = button.getAttribute('data-name')
+        
+        document.getElementById('studentName').textContent = studentName
+        const form = document.getElementById('deleteForm')
+        form.action = `/students/delete/${studentId}/`
+    })
+</script>
+{% endblock %}

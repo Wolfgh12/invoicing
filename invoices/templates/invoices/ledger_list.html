@@ -1,0 +1,308 @@
+{% extends 'invoices/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4" id="ledger-wrapper">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-5 animate-fade-in gap-3">
+        <div>
+            <h2 class="fw-bold text-navy mb-1" style="letter-spacing: -1px;">General Ledger</h2>
+            <p class="text-muted mb-0">Comprehensive financial audit trail of all transactions.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button onclick="window.print()" class="btn btn-outline-navy px-4 py-2 shadow-sm rounded-pill fw-bold w-100 w-md-auto">
+                <i class="fas fa-print me-2"></i> Print Report
+            </button>
+        </div>
+    </div>
+
+    <div class="row mb-5 animate-fade-in">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4 p-3 p-md-4 bg-white">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-2">
+                    <h5 class="fw-bold text-navy mb-0">Collection Intelligence <span class="text-muted fw-normal small">(YoY Comparison)</span></h5>
+                    <div class="small">
+                        <span class="me-3"><i class="fas fa-circle text-navy me-1"></i> Current Year</span>
+                        <span><i class="fas fa-circle text-gold me-1"></i> Previous Year</span>
+                    </div>
+                </div>
+                <div class="chart-container" style="position: relative; height: 40vh; min-height: 250px; width: 100%;">
+                    <canvas id="yoyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white animate-fade-in filter-card">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-navy">Start Date</label>
+                <input type="date" name="start_date" class="form-control rounded-pill border-light" value="{{ start_date|default:'' }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small fw-bold text-navy">End Date</label>
+                <input type="date" name="end_date" class="form-control rounded-pill border-light" value="{{ end_date|default:'' }}">
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-navy-action px-4 flex-grow-1 rounded-pill fw-bold text-white" style="background-color: var(--ugc-navy);">
+                    <i class="fas fa-filter me-2"></i> Filter Ledger
+                </button>
+                <a href="{% url 'ledger_list' %}" class="btn btn-light px-3 rounded-pill border shadow-sm">
+                    <i class="fas fa-redo"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="row g-4 mb-5 animate-slide-up">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-5 border-info">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase fs-xs fw-bold mb-2">Opening Balance</h6>
+                    <h3 class="fw-bold text-navy">GHS {{ opening_balance|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-5 border-navy">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase fs-xs fw-bold mb-2">Period Billed</h6>
+                    <h3 class="fw-bold text-navy">GHS {{ total_billed|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-5 border-success">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase fs-xs fw-bold mb-2">Period Received</h6>
+                    <h3 class="fw-bold text-success">GHS {{ total_received|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm rounded-4 p-3 bg-white border-start border-5 border-gold">
+                <div class="card-body">
+                    <h6 class="text-muted text-uppercase fs-xs fw-bold mb-2">Closing Balance</h6>
+                    <h3 class="fw-bold text-navy">GHS {{ outstanding_balance|floatformat:2 }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden animate-slide-up" style="animation-delay: 0.1s;">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr class="bg-light">
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Date</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Reference / Description</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Type</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0 text-end">Debit (Billed)</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0 text-end">Credit (Paid)</th>
+                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0 text-end">Running Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if config.auto_generate_ledger %}
+                            {% if not ledger_entries.has_previous %}
+                            <tr class="table-light">
+                                <td class="px-4 py-3 text-muted small">{{ start_date|default:"Beginning" }}</td>
+                                <td class="px-4 py-3"><div class="fw-bold text-navy">OPENING BALANCE</div></td>
+                                <td class="px-4 py-3"><span class="badge bg-secondary px-2 py-1">Forward</span></td>
+                                <td class="px-4 py-3 text-end">-</td>
+                                <td class="px-4 py-3 text-end">-</td>
+                                <td class="px-4 py-3 text-end fw-bold text-navy">GHS {{ opening_balance|floatformat:2 }}</td>
+                            </tr>
+                            {% endif %}
+
+                            {% for entry in ledger_entries %}
+                            <tr>
+                                <td class="px-4 py-3 text-muted small">
+                                    {{ entry.date|date:"d M, Y" }}
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="fw-bold text-navy mb-0">{{ entry.reference }}</div>
+                                    <div class="small text-muted">{{ entry.description }}</div>
+                                </td>
+                                <td class="px-4 py-3">
+                                    {% if entry.type == 'INVOICE' %}
+                                        <span class="badge bg-soft-navy text-navy px-2 py-1">Invoice</span>
+                                    {% else %}
+                                        <span class="badge bg-soft-success text-success px-2 py-1">Payment</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-end text-navy fw-medium">
+                                    {% if entry.type == 'INVOICE' %}
+                                        GHS {{ entry.amount|floatformat:2 }}
+                                    {% else %}
+                                        <span class="text-light-gray">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-end text-success fw-medium">
+                                    {% if entry.type == 'PAYMENT' %}
+                                        GHS {{ entry.amount|floatformat:2 }}
+                                    {% else %}
+                                        <span class="text-light-gray">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-end fw-bold text-navy">
+                                    GHS {{ entry.running_balance|floatformat:2 }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">No transactions found in the ledger.</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fas fa-lock me-2"></i> Ledger generation is currently disabled.
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% if ledger_entries.has_other_pages %}
+    <div class="mt-5 border-top pt-4 no-print">
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-4 animate-fade-in">
+            <div class="text-uppercase fw-bold text-muted tracking-wider" style="font-size: 10px; letter-spacing: 2px;">
+                Showing {{ ledger_entries.start_index }} - {{ ledger_entries.end_index }} of {{ ledger_entries.paginator.count }} Transactions
+            </div>
+            {% include 'invoices/pagination.html' with page_obj=ledger_entries %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const yoyData = JSON.parse('{{ yoy_chart_json|safe }}');
+        const ctx = document.getElementById('yoyChart').getContext('2d');
+        
+        const formatter = new Intl.NumberFormat('en-GH', {
+            style: 'currency',
+            currency: 'GHS',
+        });
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: yoyData.labels,
+                datasets: [
+                    {
+                        label: 'Current Year',
+                        data: yoyData.current_year,
+                        borderColor: '#002147',
+                        backgroundColor: 'rgba(0, 33, 71, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: window.innerWidth < 768 ? 2 : 4
+                    },
+                    {
+                        label: 'Previous Year',
+                        data: yoyData.prev_year,
+                        borderColor: '#D4AF37',
+                        borderDash: [5, 5],
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: false,
+                        pointRadius: window.innerWidth < 768 ? 2 : 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) { label += ': '; }
+                                if (context.parsed.y !== null) {
+                                    label += formatter.format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { display: false },
+                        ticks: {
+                            maxRotation: 0,
+                            callback: function(value) {
+                                if (window.innerWidth < 768) {
+                                    return value >= 1000 ? (value/1000).toFixed(1) + 'k' : value;
+                                }
+                                return 'GHS ' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: { 
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: window.innerWidth < 768 ? 10 : 12 }
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+
+<style>
+    :root {
+        --ugc-navy: #002147;
+        --ugc-gold: #D4AF37;
+        --success-green: #28a745;
+    }
+
+    [data-bs-theme="dark"] .text-navy, 
+    [data-bs-theme="dark"] .text-muted,
+    [data-bs-theme="dark"] .fw-bold,
+    [data-bs-theme="dark"] h2,
+    [data-bs-theme="dark"] h3,
+    [data-bs-theme="dark"] td {
+        color: var(--ugc-gold) !important;
+    }
+
+    [data-bs-theme="dark"] .card {
+        background-color: #111827 !important;
+        border: 1px solid rgba(212, 175, 55, 0.2) !important;
+    }
+
+    [data-bs-theme="dark"] .bg-light { background-color: #1f2937 !important; }
+    [data-bs-theme="dark"] .table-light { background-color: #1f2937 !important; color: white !important; }
+
+    .text-navy { color: var(--ugc-navy); }
+    .text-gold { color: var(--ugc-gold); }
+    .bg-soft-navy { background-color: rgba(0, 33, 71, 0.1); }
+    .bg-soft-success { background-color: rgba(40, 167, 69, 0.1); }
+    .border-navy { border-color: var(--ugc-navy) !important; }
+    .border-gold { border-color: var(--ugc-gold) !important; }
+    .text-light-gray { color: #dee2e6; }
+    .fs-xs { font-size: 0.75rem; }
+
+    @media print {
+        .btn, #sidebar, .filter-card, .no-print { display: none !important; }
+        .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+    }
+
+    .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+    .animate-slide-up { animation: slideUp 0.6s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+{% endblock %}

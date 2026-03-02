@@ -1,0 +1,321 @@
+{% extends 'invoices/base.html' %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  window.tailwind.config = {
+    darkMode: ['selector', '[data-bs-theme="dark"]'],
+    theme: {
+      extend: {
+        colors: {
+          navy: '#002147',
+          gold: '#D4AF37',
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+    /* 1. OVERRIDE BASE INVISIBILITY */
+    #themeSwitcher, .theme-toggle, [id*="theme"], [class*="toggle"] { 
+        display: flex !important; 
+        visibility: visible !important; 
+        opacity: 1 !important; 
+    }
+
+    /* 2. BOOTSTRAP DARK MODE ADJUSTMENTS */
+    [data-bs-theme="dark"] body { background-color: #0b0f19 !important; color: #ffffff !important; }
+    
+    [data-bs-theme="dark"] .card, 
+    [data-bs-theme="dark"] .card-body,
+    [data-bs-theme="dark"] .modal-content { 
+        background-color: #002147 !important; 
+        color: #ffffff !important;
+        border: 1px solid rgba(212, 175, 55, 0.1) !important;
+    }
+
+    [data-bs-theme="dark"] .bg-light,
+    [data-bs-theme="dark"] .form-control.bg-light { 
+        background-color: #001630 !important; 
+        color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+    }
+
+    [data-bs-theme="dark"] .text-dark,
+    [data-bs-theme="dark"] .text-muted,
+    [data-bs-theme="dark"] .fw-bold { color: #ffffff !important; }
+    
+    [data-bs-theme="dark"] .text-info { color: #D4AF37 !important; }
+
+    [data-bs-theme="dark"] .table { color: #ffffff !important; }
+    [data-bs-theme="dark"] .table tbody tr:hover { background-color: rgba(255,255,255,0.05) !important; }
+    
+    [data-bs-theme="dark"] .badge.bg-light { background-color: #001630 !important; border-color: #D4AF37 !important; color: #D4AF37 !important; }
+
+    .fw-black { font-weight: 900; }
+    .table thead th { border: none; letter-spacing: 0.5px; }
+    .table tbody td { border-bottom: 1px solid rgba(0,0,0,0.05); padding-top: 1.2rem; padding-bottom: 1.2rem; }
+    [data-bs-theme="dark"] .table tbody td { border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+    .icon-stack { position: relative; display: inline-block; width: 2em; height: 2em; line-height: 2em; vertical-align: middle; margin-right: 8px; }
+    .cedi-overlay { 
+        position: absolute; 
+        bottom: 2px; 
+        right: -2px; 
+        font-size: 0.65rem; 
+        background: white; 
+        color: black; 
+        width: 14px; 
+        height: 14px; 
+        border-radius: 50%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        font-weight: 900;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    [data-bs-theme="dark"] .cedi-overlay { background: #D4AF37; color: #002147; }
+</style>
+
+<div class="container-fluid py-4 animate-page-in">
+    
+    <div class="d-flex justify-content-end mb-3 gap-2">
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm px-3 rounded-pill shadow-sm">
+            <i class="fas fa-file-invoice me-2 text-primary"></i>Back to Invoices
+        </a>
+        <a href="{% url 'receipt_list' %}" class="btn btn-dark btn-sm px-3 rounded-pill border-warning shadow-sm">
+            <i class="fas fa-history me-2 text-warning"></i>Refresh Vault
+        </a>
+    </div>
+
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center">
+                <div class="bg-dark text-warning p-3 rounded-3 me-3 shadow-sm border border-secondary">
+                    <i class="fas fa-receipt fa-2x"></i>
+                </div>
+                <div>
+                    <h2 class="fw-bold mb-0">Transaction <span class="text-warning">Vault</span></h2>
+                    {% if request.GET.q %}
+                        <p class="text-info mb-0 text-uppercase small fw-bold">
+                            <i class="fas fa-filter me-1 text-warning"></i> Filtered Results: {{ request.GET.q }}
+                        </p>
+                    {% else %}
+                        <p class="text-muted mb-0 text-uppercase small fw-bold">Verified Payment History</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="pe-3">
+                <small class="text-uppercase text-muted fw-bold" style="letter-spacing: 1px;">
+                    {% if request.GET.q %}Filtered Total{% else %}Total Revenue{% endif %}
+                </small>
+                <h2 class="fw-black text-success mb-0">
+                    {{ config.base_currency|default:"GHS" }} {{ total_collected|default:"0.00"|floatformat:2 }}
+                </h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4 rounded-4">
+        <div class="card-body p-4">
+            <form method="GET" action="{% url 'receipt_list' %}" class="row g-3">
+                <div class="col-md-5">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-light border-0"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" name="q" class="form-control bg-light border-0" 
+                               placeholder="Search name or Invoice #..." value="{{ request.GET.q }}">
+                        
+                        {% if request.GET.q or request.GET.start_date or request.GET.end_date %}
+                        <a href="{% url 'receipt_list' %}" class="input-group-text bg-light border-0 text-danger" title="Clear Search">
+                            <i class="fas fa-times-circle fa-lg"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group input-group-lg">
+                        <input type="date" name="start_date" class="form-control bg-light border-0" value="{{ request.GET.start_date }}">
+                        <span class="input-group-text bg-light border-0">to</span>
+                        <input type="date" name="end_date" class="form-control bg-light border-0" value="{{ request.GET.end_date }}">
+                    </div>
+                </div>
+                <div class="col-md-3 d-grid">
+                    <button type="submit" class="btn btn-dark btn-lg fw-bold text-uppercase border-warning" style="letter-spacing: 1px;">Apply Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead style="background-color: #417690; color: white;">
+                        <tr>
+                            <th class="ps-4 py-3 text-uppercase small">Date/Receipt</th>
+                            <th class="py-3 text-uppercase small">Student & Invoice</th>
+                            <th class="py-3 text-uppercase small">Method</th>
+                            <th class="py-3 text-uppercase small">Total Invoiced</th>
+                            <th class="py-3 text-uppercase small">Amount Paid</th>
+                            <th class="py-3 text-uppercase small">Balance Owed</th>
+                            <th class="text-end pe-4 py-3 text-uppercase small">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-dark">{{ payment.date|date:"d M, Y" }}</div>
+                                <span class="badge bg-light text-dark border font-monospace mt-1">
+                                    #{{ payment.receipt_number|default:"N/A" }}
+                                </span>
+                            </td>
+                            <td>
+                                <button type="button" 
+                                        class="btn btn-link p-0 text-start text-decoration-none group d-block"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#paymentHistoryModal"
+                                        data-student="{{ payment.invoice.student.full_name|addslashes }}"
+                                        data-invoice="{{ payment.invoice.invoice_number }}"
+                                        data-type="{{ payment.invoice.invoice_type|default:'Fees' }}"
+                                        data-total-invoiced="{{ payment.invoice.grand_total|floatformat:2 }}"
+                                        data-log="{{ payment.payment_log|linebreaksbr }}"
+                                        onclick="showHistory(this)">
+                                    <div class="fw-bold text-dark group-hover:text-blue-600 transition-colors">
+                                        {{ payment.invoice.student.full_name }}
+                                    </div>
+                                </button>
+                                <div class="small text-info fw-bold">
+                                    <i class="fas fa-file-invoice-dollar me-1"></i>Inv: #{{ payment.invoice.invoice_number }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if payment.method == 'momo' %}
+                                        <div class="icon-stack text-warning">
+                                            <i class="fas fa-mobile-alt fa-lg"></i>
+                                            <span class="cedi-overlay">₵</span>
+                                        </div>
+                                        <small class="fw-bold text-uppercase">Momo</small>
+                                    {% elif payment.method == 'bank' %}
+                                        <div class="icon-stack text-info">
+                                            <i class="fas fa-university fa-lg"></i>
+                                            <span class="cedi-overlay">₵</span>
+                                        </div>
+                                        <small class="fw-bold text-uppercase">Bank</small>
+                                    {% else %}
+                                        <div class="icon-stack text-success">
+                                            <i class="fas fa-money-bill-wave fa-lg"></i>
+                                            <span class="cedi-overlay">₵</span>
+                                        </div>
+                                        <small class="fw-bold text-uppercase">Cash</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="fw-bold text-dark">
+                                    {{ config.base_currency|default:"GHS" }} 
+                                    {{ payment.invoice.grand_total|floatformat:2 }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-black text-dark h5 mb-0">
+                                        {{ config.base_currency|default:"GHS" }} {{ payment.amount|floatformat:2 }}
+                                    </span>
+                                    <span class="text-success small fw-bold"><i class="fas fa-check-double me-1"></i>Verified</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="badge {% if payment.invoice.balance_due > 0 %}bg-soft-danger text-danger{% else %}bg-soft-success text-success{% endif %} px-3 py-2 rounded-pill">
+                                    {{ config.base_currency|default:"GHS" }} {{ payment.invoice.balance_due|default:"0.00"|floatformat:2 }}
+                                </div>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group">
+                                    <a href="{% url 'generate_receipt_pdf' payment.id %}" class="btn btn-link text-dark p-0 me-3" title="Print Receipt">
+                                        <i class="fas fa-print fa-lg"></i>
+                                    </a>
+                                    <a href="{% url 'send_receipt_pdf_email' payment.id %}" class="btn btn-link text-success p-0" title="Email Receipt">
+                                        <i class="fas fa-paper-plane fa-lg"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <img src="https://cdn-icons-png.flaticon.com/512/4076/4076432.png" style="width: 80px; opacity: 0.2;" class="mb-3">
+                                <p class="text-muted fw-bold">No transactions found.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="paymentHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header border-0 bg-dark text-white rounded-top-4">
+                <div>
+                    <h5 class="modal-title fw-black text-uppercase" id="modalStudentName">History</h5>
+                    <span id="modalPaymentType" class="badge bg-warning text-dark text-uppercase" style="font-size: 0.7rem;"></span>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <p id="modalInvoiceNum" class="text-muted small fw-bold text-uppercase mb-0"></p>
+                    <div class="text-end">
+                        <span class="text-muted small fw-bold text-uppercase d-block">Total Invoiced</span>
+                        <span id="modalTotalInvoiced" class="fw-black text-primary"></span>
+                    </div>
+                </div>
+                <hr class="my-3 opacity-10">
+                <div id="historyContainer" class="p-2 bg-light rounded text-dark" style="font-family: monospace; white-space: pre-wrap;">
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showHistory(btn) {
+        const name = btn.getAttribute('data-student');
+        const invoice = btn.getAttribute('data-invoice');
+        const pType = btn.getAttribute('data-type');
+        const totalInvoiced = btn.getAttribute('data-total-invoiced');
+        const log = btn.getAttribute('data-log');
+
+        document.getElementById('modalStudentName').innerText = name;
+        document.getElementById('modalPaymentType').innerText = pType;
+        document.getElementById('modalInvoiceNum').innerText = "Invoice: #" + invoice;
+        document.getElementById('modalTotalInvoiced').innerText = "GHS " + parseFloat(totalInvoiced).toFixed(2);
+
+        const container = document.getElementById('historyContainer');
+        container.innerHTML = log;
+    }
+</script>
+
+<style>
+    .bg-soft-danger { background-color: rgba(220, 53, 69, 0.1); }
+    .bg-soft-success { background-color: rgba(25, 135, 84, 0.1); }
+    [data-bs-theme="dark"] .bg-soft-danger { background-color: rgba(220, 53, 69, 0.2); }
+    [data-bs-theme="dark"] .bg-soft-success { background-color: rgba(25, 135, 84, 0.2); }
+    [data-bs-theme="dark"] .btn-close-white { filter: invert(1) grayscale(100%) brightness(200%); }
+    [data-bs-theme="dark"] .text-primary { color: #D4AF37 !important; }
+    [data-bs-theme="dark"] #historyContainer { background-color: #001630 !important; color: #ffffff !important; }
+</style>
+{% endblock %}

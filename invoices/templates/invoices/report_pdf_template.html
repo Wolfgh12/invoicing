@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Financial Report</title>
+    <style>
+        @page {
+            size: a4;
+            margin: 2cm;
+        }
+        body {
+            font-family: Helvetica, sans-serif;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #D4AF37;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .title {
+            font-size: 22pt;
+            font-weight: bold;
+            color: #002147;
+            text-transform: uppercase;
+        }
+        .metric-table {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .metric-box {
+            padding: 10px;
+            border: 1px solid #eee;
+            text-align: center;
+        }
+        .label {
+            font-size: 9pt;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .value {
+            font-size: 16pt;
+            font-weight: bold;
+            display: block;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th {
+            background-color: #002147;
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-size: 10pt;
+        }
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            font-size: 10pt;
+        }
+        .text-success { color: #198754; }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 8pt;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+    <img src="{{ logo_path }}" style="height: 80px; width: auto;">
+    
+    <div class="title">Financial Intelligence Report</div>
+    <p>Generated on: {{ generated_at|date:"F j, Y" }}</p>
+</div>
+    <table class="metric-table">
+        <tr>
+            <td class="metric-box">
+                <span class="label">Total Billed</span>
+                <span class="value">GHS {{ total_billed|floatformat:2 }}</span>
+            </td>
+            <td class="metric-box">
+                <span class="label">Collected</span>
+                <span class="value" style="color: #198754;">GHS {{ total_collected|floatformat:2 }}</span>
+            </td>
+            <td class="metric-box">
+                <span class="label">Outstanding</span>
+                <span class="value" style="color: #dc3545;">GHS {{ outstanding|floatformat:2 }}</span>
+            </td>
+        </tr>
+    </table>
+
+    <h3>Top Students by Revenue</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Student Name</th>
+                <th>Index Number</th>
+                <th style="text-align: right;">Paid to Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in top_students %}
+            <tr>
+                <td>{{ student.full_name }}</td>
+                <td>{{ student.index_number }}</td>
+                <td style="text-align: right;" class="text-success">GHS {{ student.revenue|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Confidential Financial Report - {{ config.school_name|default:"UGC Invoicing" }}
+    </div>
+</body>
+</html>

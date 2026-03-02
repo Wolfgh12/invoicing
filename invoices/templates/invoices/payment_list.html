@@ -1,0 +1,154 @@
+{% extends 'invoices/base.html' %}
+{% load static %}
+
+{% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  window.tailwind.config = {
+    darkMode: ['selector', '[data-bs-theme="dark"]'], 
+    theme: {
+      extend: {
+        colors: {
+          navy: '#002147',
+          gold: '#D4AF37',
+          'navy-deep': '#001630',
+        },
+        borderRadius: {
+          'xl-plus': '1.25rem',
+          '2xl-plus': '1.75rem',
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+    /* OVERRIDE BASE INVISIBILITY */
+    #themeSwitcher, .theme-toggle, [id*="theme"], [class*="toggle"] { 
+        display: flex !important; 
+        visibility: visible !important; 
+        opacity: 1 !important; 
+    }
+
+    /* UI Cleanup */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .animate-page-in { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* DARK MODE VISIBILITY FIXES */
+    [data-bs-theme="dark"] body { color: #ffffff; }
+    [data-bs-theme="dark"] .text-navy { color: #ffffff !important; }
+    [data-bs-theme="dark"] .text-gray-500, 
+    [data-bs-theme="dark"] .text-gray-400 { color: #9ca3af !important; }
+    [data-bs-theme="dark"] .bg-white { background-color: #002147 !important; }
+</style>
+
+<div class="min-h-screen bg-[#f4f7fa] dark:bg-[#0b0f19] py-6 md:py-12 px-4 flex justify-center items-start animate-page-in transition-colors duration-500">
+    <div class="w-full max-w-6xl">
+        
+        <nav class="flex items-center justify-between mb-8 text-sm">
+            <div class="flex items-center space-x-3 group">
+                <div class="bg-white dark:bg-navy-deep p-1.5 rounded-lg shadow-sm border border-gray-100 dark:border-gold/20">
+                    <i class="fas fa-history text-navy dark:text-gold text-xs"></i>
+                </div>
+                <span class="text-navy dark:text-white font-black uppercase tracking-wider text-[11px]">Payment History Log</span>
+            </div>
+        </nav>
+
+        <div class="bg-white dark:bg-navy rounded-2xl-plus shadow-[0_20px_50px_rgba(0,33,71,0.1)] overflow-hidden border border-white dark:border-gold/10 transition-all">
+            <div class="p-6 md:p-12">
+                
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12 border-b border-gray-100 dark:border-white/5 pb-8">
+                    <div class="flex items-center space-x-4 md:space-x-6">
+                        <div class="h-16 w-16 md:h-20 md:w-20 bg-navy-deep rounded-2xl flex items-center justify-center shadow-2xl border border-transparent dark:border-gold/30">
+                            <i class="fas fa-receipt text-gold text-2xl md:text-3xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl md:text-3xl font-black text-navy dark:text-white leading-tight tracking-tight">
+                                Transaction <span class="text-gold">Vault</span>
+                            </h1>
+                            <p class="text-gray-400 dark:text-gold/60 font-medium text-xs md:text-sm mt-1 uppercase tracking-wide">
+                                Verified Payment History
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="text-right">
+                        <p class="text-[10px] font-black text-gray-400 dark:text-gold uppercase tracking-widest mb-1">Total Revenue</p>
+                        <h3 class="text-2xl md:text-3xl font-black text-emerald-500">GHS {{ total_revenue|floatformat:2 }}</h3>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl-plus border border-gray-100 dark:border-white/10 no-scrollbar">
+                    <table class="w-full text-left min-w-[700px]">
+                        <thead class="bg-gradient-to-r from-amber-400 to-amber-600 dark:from-amber-600 dark:to-amber-800">
+                            <tr class="text-[10px] font-black text-amber-950 dark:text-white uppercase tracking-[0.15em]">
+                                <th class="px-8 py-5">Date & Time</th>
+                                <th class="px-8 py-5">Invoice #</th>
+                                <th class="px-8 py-5">Student Info</th>
+                                <th class="px-8 py-5">Method</th>
+                                <th class="px-8 py-5 text-right">Amount Paid</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50 dark:divide-white/5">
+                            {% for payment in payments %}
+                            <tr class="group hover:bg-amber-50/30 dark:hover:bg-white/5 transition-all">
+                                <td class="px-8 py-6">
+                                    <p class="text-sm font-black text-navy dark:text-white leading-none mb-1">{{ payment.date|date:"d M, Y" }}</p>
+                                    <p class="text-[10px] text-gray-400 dark:text-gray-400 font-bold uppercase">{{ payment.date|time:"H:i A" }}</p>
+                                </td>
+                                <td class="px-8 py-6">
+                                    <span class="bg-slate-100 dark:bg-navy-deep text-slate-600 dark:text-gold text-[11px] font-black px-3 py-1.5 rounded-lg border border-slate-200 dark:border-gold/20">
+                                        #{{ payment.invoice.invoice_number }}
+                                    </span>
+                                </td>
+                                <td class="px-8 py-6">
+                                    <p class="text-sm font-black text-navy dark:text-white">{{ payment.invoice.student.full_name }}</p>
+                                    <p class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold tracking-wider">{{ payment.invoice.student.index_number }}</p>
+                                </td>
+                                <td class="px-8 py-6">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"></div>
+                                        <span class="text-xs font-black text-gray-500 dark:text-gray-300 uppercase tracking-tight">{{ payment.method }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-8 py-6 text-right">
+                                    <span class="text-lg font-black text-navy dark:text-white">GHS {{ payment.amount|floatformat:2 }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="py-24 text-center">
+                                    <i class="fas fa-coins text-5xl text-gray-200 dark:text-white/10 mb-4 block"></i>
+                                    <p class="text-gray-400 dark:text-gray-400 font-bold uppercase text-xs tracking-widest">No payment transactions recorded</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if payments.has_other_pages %}
+                <div class="mt-12 border-t border-gray-100 dark:border-white/5 pt-8">
+                    <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div class="text-[10px] font-black text-gray-400 dark:text-gold/50 uppercase tracking-[0.2em]">
+                            Vault Records: {{ payments.start_index }} - {{ payments.end_index }} of {{ payments.paginator.count }}
+                        </div>
+                        
+                        <div class="dark:brightness-110">
+                            {% include 'invoices/pagination.html' with page_obj=payments %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" type="text/css" href="{% static 'admin/css/changelists.css' %}">
+  {% if cl.formset %}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/forms.css' %}">
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div id="content-main" class="p-4 bg-base-200 min-h-screen">
+    
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-slate-800 uppercase tracking-tight">{{ cl.opts.verbose_name_plural }}</h1>
+            <p class="text-xs text-slate-500">Manage and review your {{ cl.opts.verbose_name_plural|lower }}</p>
+        </div>
+        
+        {% block object-tools %}
+            <ul class="object-tools">
+              {% block object-tools-items %}
+                {% url cl.opts|admin_urlname:'add' as add_url %}
+                {% if add_url %}
+                    <li>
+                      <a href="{% add_preserved_filters add_url is_popup to_field %}" class="btn btn-primary btn-sm shadow-lg border-none text-white">
+                        <i class="fa-solid fa-plus mr-1"></i> New {{ cl.opts.verbose_name }}
+                      </a>
+                    </li>
+                {% endif %}
+              {% endblock %}
+            </ul>
+        {% endblock %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <div class="lg:col-span-3">
+            <div class="card bg-white shadow-sm border border-slate-200 overflow-hidden">
+                
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex-1">
+                        {% block search %}{% search_form cl %}{% endblock %}
+                    </div>
+                    
+                    {% if action_form and actions_on_top and cl.show_admin_actions %}
+                        <div class="flex items-center gap-2">
+                            {% admin_actions %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <form id="changelist-form" method="post"{% if cl.formset and cl.formset.is_multipart %} enctype="multipart/form-data"{% endif %} novalidate>
+                    {% csrf_token %}
+                    {% if cl.formset %}
+                        <div>{{ cl.formset.management_form }}</div>
+                    {% endif %}
+
+                    <div class="results overflow-x-auto">
+                        {% block result_list %}
+                            {% result_list cl %}
+                        {% endblock %}
+                    </div>
+                    
+                    <div class="p-4 bg-slate-50 border-t border-slate-200">
+                        {% block pagination %}{% pagination cl %}{% endblock %}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="lg:col-span-1">
+            {% if cl.has_filters %}
+                <div id="changelist-filter" class="card bg-white shadow-sm border border-slate-200 sticky top-4">
+                    <div class="p-4 border-b border-slate-200 bg-slate-900 text-white rounded-t-xl">
+                        <h2 class="font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+                            <i class="fa-solid fa-filter text-primary"></i> Filter Results
+                        </h2>
+                    </div>
+                    <div class="p-4 space-y-6 text-sm overflow-y-auto max-h-[70vh]">
+                        {% for spec in cl.filter_specs %}
+                            <div class="filter-group">
+                                {% admin_list_filter cl spec %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+  </div>
+
+  <style>
+      /* Table Styling */
+      .results table { @apply table table-zebra w-full border-none !important; }
+      .results thead th { @apply bg-slate-100 text-slate-600 text-[10px] font-bold uppercase p-4 border-none !important; }
+      .results thead th .text a { @apply text-slate-600 !important; }
+      .results tbody td { @apply p-4 border-b border-slate-50 text-sm !important; }
+      
+      /* Search Input Styling */
+      #searchbar { @apply input input-bordered input-sm w-full max-w-xs focus:outline-primary !important; height: 2rem !important; }
+      #changelist-search input[type="submit"] { @apply btn btn-ghost btn-sm border border-slate-300 ml-2 !important; }
+      
+      /* Action Dropdown Styling */
+      .actions { @apply flex items-center gap-2 text-xs !important; border: none !important; background: transparent !important; margin: 0 !important; }
+      .actions select { @apply select select-bordered select-sm h-8 !important; }
+      .actions .button { @apply btn btn-outline btn-sm h-8 min-h-0 !important; }
+      .actions .action-counter { @apply text-slate-400 ml-2 !important; }
+
+      /* Filter List Styling */
+      #changelist-filter ul { @apply menu menu-sm p-0 !important; }
+      #changelist-filter li { @apply mb-1 !important; }
+      #changelist-filter a { @apply rounded-md py-1 px-2 !important; }
+      #changelist-filter .selected a { @apply bg-primary text-primary-content font-bold !important; }
+      #changelist-filter h3 { @apply text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 mt-4 !important; }
+
+      /* Hide default Django bits */
+      .module h2 { display: none !important; }
+      #changelist-filter h2 { display: none; }
+  </style>
+{% endblock %}

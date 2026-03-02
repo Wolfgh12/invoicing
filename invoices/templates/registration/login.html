@@ -1,0 +1,347 @@
+{% load static %}  
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UGC Portal | Accountant Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --ugc-maroon: #800000; 
+            --ugc-gold: #d6a329; 
+            --ugc-off-white: #fcfaf5; 
+            
+            /* Theme Variables - Light */
+            --bg-color: var(--ugc-off-white);
+            --card-bg: var(--ugc-gold);
+            --text-main: #ffffff;
+            --input-bg: rgba(255, 255, 255, 0.95);
+            --btn-text: var(--ugc-maroon);
+            --shape-opacity-1: 0.08;
+            --shape-opacity-2: 0.15;
+            --input-text: #1a1a1a;
+            --modal-bg: #ffffff;
+            --modal-text: #333;
+            --accent-glow: rgba(214, 163, 41, 0.3);
+            --watermark-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Night Mode Overrides */
+        body.dark-mode {
+            --bg-color: #050a14;
+            --card-bg: #002147;
+            --input-bg: #001630;
+            --text-main: #D4AF37; 
+            --btn-text: #002147;
+            --shape-opacity-1: 0.4;
+            --shape-opacity-2: 0.4;
+            --input-text: #ffffff;
+            --modal-bg: #002147;
+            --modal-text: #ffffff;
+            --accent-glow: rgba(212, 175, 55, 0.2);
+            --watermark-color: rgba(212, 175, 55, 0.08);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at 20% 30%, rgba(128, 0, 0, 0.05) 0%, transparent 40%),
+                              radial-gradient(circle at 80% 70%, rgba(214, 163, 41, 0.1) 0%, transparent 40%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            margin: 0;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #stars-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        body.dark-mode #stars-container { opacity: 1; }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: twinkle var(--duration) infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .moon {
+            position: absolute;
+            top: 10%;
+            right: 15%;
+            width: 80px;
+            height: 80px;
+            background: #fdfae5;
+            border-radius: 50%;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
+            opacity: 0;
+            transition: all 1s ease;
+            transform: translateY(-20px);
+        }
+
+        body.dark-mode .moon { opacity: 1; transform: translateY(0); }
+
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.05);
+            filter: blur(40px);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+        body.dark-mode .cloud { opacity: 0.4; }
+
+        .theme-toggle {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            z-index: 100;
+            background: var(--card-bg);
+            border: 2px solid var(--text-main);
+            color: var(--text-main);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex !important; 
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transition: all 0.4s ease;
+        }
+
+        .shape {
+            position: absolute;
+            filter: blur(80px);
+            z-index: 0;
+            border-radius: 50%;
+            animation: float 12s infinite ease-in-out;
+            transition: background 0.5s ease;
+        }
+        
+        .shape-1 { width: 450px; height: 450px; background: rgba(128, 0, 0, var(--shape-opacity-1)); top: -100px; left: -100px; }
+        .shape-2 { width: 550px; height: 550px; background: rgba(214, 163, 41, var(--shape-opacity-2)); bottom: -150px; right: -100px; animation-delay: -6s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(40px, 60px); }
+        }
+
+        .login-card {
+            position: relative;
+            background: var(--card-bg); 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            padding: 45px;
+            width: 100%;
+            max-width: 420px;
+            z-index: 10;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.5s ease;
+            overflow: hidden;
+        }
+
+        .watermark {
+            position: absolute;
+            bottom: 15px;
+            right: 20px;
+            font-size: 0.75rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            color: var(--watermark-color);
+            pointer-events: none;
+            user-select: none;
+            z-index: 1;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo-circle {
+            width: 100%; max-width: 240px; height: 75px;
+            background: white; border-radius: 12px; margin: 0 auto 25px;
+            display: flex; align-items: center; justify-content: center; padding: 10px;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo-circle img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        .form-control {
+            background: var(--input-bg);
+            border: 2px solid transparent;
+            color: var(--input-text) !important;
+            border-radius: 14px;
+            padding: 14px 18px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            background: #ffffff;
+            color: #000000 !important;
+            border-color: var(--ugc-gold);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        .btn-login {
+            background: #ffffff; border: none; color: var(--btn-text); 
+            font-weight: 800; letter-spacing: 1.5px; padding: 16px;
+            border-radius: 14px; width: 100%; margin-top: 25px;
+            transition: 0.4s; text-transform: uppercase;
+        }
+
+        body.dark-mode .btn-login { background: var(--text-main); color: #002147; }
+
+        .forgot-password-link, .portal-title, .footer-text, .text-muted, .input-group-text {
+            color: var(--text-main) !important;
+            transition: color 0.5s ease;
+            text-decoration: none;
+        }
+
+        .forgot-password-link:hover { text-decoration: underline; }
+
+        .fa-heart {
+            color: #ff4d4d;
+            display: inline-block;
+            animation: heartBeat 1.2s infinite;
+        }
+
+        @keyframes heartBeat {
+            0% { transform: scale(1); }
+            14% { transform: scale(1.3); }
+            28% { transform: scale(1); }
+            42% { transform: scale(1.3); }
+            70% { transform: scale(1); }
+        }
+
+        .modal-content {
+            background-color: var(--modal-bg);
+            color: var(--modal-text);
+            border-radius: 25px;
+            border: 2px solid var(--accent-glow);
+        }
+    </style>
+</head>
+<body> 
+    <div id="stars-container"></div>
+    <div class="moon"></div>
+    <div class="cloud" style="width: 400px; height: 150px; top: 20%; left: -10%;"></div>
+    <div class="cloud" style="width: 500px; height: 200px; bottom: 10%; right: -5%;"></div>
+
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeSwitcher">
+        <i class="fas fa-sun" id="theme-icon"></i>
+    </button>
+
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+
+    <div class="login-card">
+        <div class="watermark">UGC|ABS</div>
+
+        <div class="text-center mb-4">
+            <div class="logo-circle">
+                <img src="{% static '1.png' %}" alt="UGC Logo">
+            </div>
+            <h3 class="portal-title">UGC PORTAL</h3>
+            <p class="text-muted fw-bold small text-uppercase" style="letter-spacing: 2px;">Accounts Invoicing Gateway</p>
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-0"><i class="fas fa-user-shield"></i></span>
+                    <input type="text" name="username" class="form-control" placeholder="Accountant ID" required>
+                </div>
+            </div>
+            <div class="mb-2 text-end"> 
+                <div class="input-group mb-1">
+                    <span class="input-group-text bg-transparent border-0"><i class="fas fa-lock"></i></span>
+                    <input type="password" name="password" class="form-control" placeholder="Secure Password" required>
+                </div>
+                <a href="#" class="forgot-password-link small me-2" data-bs-toggle="modal" data-bs-target="#itSupportModal">Forgot Password?</a>
+            </div>
+
+            <button type="submit" class="btn btn-login">
+                Authorize Entry <i class="fas fa-fingerprint ms-2"></i>
+            </button>
+        </form>
+
+        <div class="footer-text mt-4 text-center">
+            <div class="small opacity-75">University of Gold Coast</div>
+            <div class="fw-bold tracking-widest text-[10px] uppercase mt-1">Official Finance Node</div>
+            <small class="mt-3 d-block opacity-50">Handcrafted with <i class="fas fa-heart"></i> by Philip & Nana Yaw of the I.T. Dept</small>
+        </div>
+    </div>
+
+    <div class="modal fade" id="itSupportModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-black">Security Protocol</h5>
+                    <button type="button" class="btn-close" id="modalCloseBtn" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center p-5">
+                    <div class="mb-4"><i class="fas fa-shield-alt fa-4x text-warning"></i></div>
+                    <h4 class="fw-bold">Credential Recovery</h4>
+                    <p class="opacity-75">For security reasons, password resets must be initiated by the <strong>Information Technology Department</strong>. Please contact the helpdesk or visit the I.T. Operations Center for assistance.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const container = document.getElementById('stars-container');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            const size = Math.random() * 3 + 'px';
+            star.style.width = size;
+            star.style.height = size;
+            star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
+            container.appendChild(star);
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('theme-icon');
+            const closeBtn = document.getElementById('modalCloseBtn');
+            body.classList.toggle('dark-mode');
+            if (body.classList.contains('dark-mode')) {
+                icon.classList.replace('fa-sun', 'fa-moon');
+                if(closeBtn) closeBtn.classList.add('btn-close-white');
+            } else {
+                icon.classList.replace('fa-moon', 'fa-sun');
+                if(closeBtn) closeBtn.classList.remove('btn-close-white');
+            }
+        }
+    </script>
+</body>
+</html>

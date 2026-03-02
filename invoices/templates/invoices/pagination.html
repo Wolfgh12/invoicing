@@ -1,0 +1,55 @@
+{% if page_obj.has_other_pages %}
+<div class="d-flex justify-content-center mt-4">
+    <nav aria-label="Page navigation">
+        <ul class="pagination shadow-sm">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}" style="color: #002147;">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active">
+                    <span class="page-link border-0" style="background-color: #002147; color: #D4AF37; font-weight: 800;">
+                        {{ num }}
+                    </span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link border-0" href="?page={{ num }}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}" style="color: #002147;">
+                        {{ num }}
+                    </a>
+                </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link border-0" href="?page={{ page_obj.next_page_number }}{% if request.GET.start_date %}&start_date={{ request.GET.start_date }}{% endif %}{% if request.GET.end_date %}&end_date={{ request.GET.end_date }}{% endif %}" style="color: #002147;">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+
+<style>
+    .pagination .page-link {
+        transition: all 0.3s ease;
+        margin: 0 3px;
+        border-radius: 8px !important;
+    }
+    .pagination .page-link:hover {
+        background-color: #e5c76d !important;
+        color: #002147 !important;
+        transform: translateY(-2px);
+    }
+    .page-item.active .page-link {
+        box-shadow: 0 4px 10px rgba(0, 33, 71, 0.2);
+    }
+</style>
+{% endif %}
