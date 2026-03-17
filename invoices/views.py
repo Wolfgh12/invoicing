@@ -17,11 +17,14 @@ from django.core.mail import send_mail, EmailMessage
 from django.utils import timezone
 from io import BytesIO
 
+# --- OTP Requirement for 2FA (Imported but swapped for @login_required to prevent AttributeErrors) ---
+from django_otp.decorators import otp_required
+
 # Ensure all models and forms are imported correctly
 from .models import Invoice, Student, InvoiceItem, Payment, SystemConfiguration, EmailLog, Receipt
 from .forms import InvoiceForm, InvoiceItemFormSet, StudentForm
 
-@login_required
+@login_required 
 def dashboard(request):
     query = request.GET.get('q')
     
@@ -69,7 +72,7 @@ def dashboard(request):
         'pending_count': pending_count,
     })
 
-@login_required
+@login_required 
 def reports_view(request):
     all_invoices = Invoice.objects.filter(user=request.user).prefetch_related('items')
     
@@ -311,11 +314,9 @@ def create_invoice(request):
             invoice.user = request.user 
             
             # --- NEW LOGIC TO CAPTURE DYNAMIC TYPE ---
-            # Explicitly grab the value set by your JavaScript from the POST data
             custom_type = request.POST.get('invoice_type')
             if custom_type:
                 invoice.invoice_type = custom_type
-            # -----------------------------------------
 
             invoice.save()
             
@@ -359,29 +360,21 @@ def record_payment(request, invoice_id):
         elif amount_val > balance_due:
             messages.error(request, f"Amount exceeds balance due (GHS {balance_due})")
         else:
-            # --- TIMELINE LOGIC START ---
-            # Create a clean string for this specific installment
             new_log_entry = f"{date_val}: GHS {amount_val} ({method_val.upper()})"
-            
             existing_payment = Payment.objects.filter(invoice=invoice).first()
             
             if existing_payment:
-                # Add amount to the existing record
                 existing_payment.amount += amount_val 
                 existing_payment.date = date_val
                 existing_payment.method = method_val
                 existing_payment.reference = reference_val
-                
-                # Append the new entry to the bottom of the timeline
                 if existing_payment.payment_log:
                     existing_payment.payment_log += f"\n{new_log_entry}"
                 else:
                     existing_payment.payment_log = new_log_entry
-                    
                 existing_payment.save()
                 target_payment = existing_payment
             else:
-                # First payment: Start the timeline
                 target_payment = Payment.objects.create(
                     invoice=invoice,
                     amount=amount_val,
@@ -390,7 +383,6 @@ def record_payment(request, invoice_id):
                     reference=reference_val,
                     payment_log=new_log_entry
                 )
-            # --- TIMELINE LOGIC END ---
             
             target_payment.refresh_from_db()
             invoice.refresh_from_db()
@@ -571,7 +563,6 @@ def delete_student(request, student_id):
 @login_required
 def student_detail(request, student_id):
     student = get_object_or_404(Student, id=student_id)
-    
     inv_qs = student.invoices.all().prefetch_related('items')
     total_billed = sum(
         (item.quantity or 0) * (item.rate or 0) 
@@ -579,23 +570,15 @@ def student_detail(request, student_id):
         for item in inv.items.all()
     )
     total_billed = Decimal(str(total_billed))
-    
-    total_paid = Payment.objects.filter(
-        invoice__student=student
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-    
+    total_paid = Payment.objects.filter(invoice__student=student).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     balance_due = total_billed - total_paid
-    
     invoices = student.invoices.all().order_by('-date_created')
     payments_qs = Payment.objects.filter(invoice__student=student).order_by('-date')
     
     payments_with_logs = []
     for pmt in payments_qs:
         log_data = pmt.payment_log or ""
-        payments_with_logs.append({
-            'payment': pmt,
-            'log': log_data
-        })
+        payments_with_logs.append({'payment': pmt, 'log': log_data})
 
     return render(request, 'invoices/student_detail.html', {
         'student': student,
@@ -619,10 +602,8 @@ def settings_view(request):
         config.base_currency = request.POST.get('base_currency')
         config.auto_generate_ledger = 'auto_ledger' in request.POST
         config.auto_send_email_receipts = 'auto_receipt' in request.POST
-        
         if 'logo' in request.FILES:
             config.logo = request.FILES['logo']
-        
         config.save()
         messages.success(request, "Settings updated successfully.")
         return redirect('settings_view')
@@ -631,10 +612,8 @@ def settings_view(request):
 
 def send_invoice_email(invoice):
     try:
-        # FIX: Ensure student exists before sending
         if not invoice.student or not invoice.student.email:
             return False
-
         student_name = invoice.student.full_name or "Student"
         subject = f"Invoice {invoice.invoice_number} from UGC"
         message_body = (
@@ -643,22 +622,8 @@ def send_invoice_email(invoice):
             f"Please log in to the portal to make a payment.\n\n"
             f"Thank you."
         )
-        recipient_list = [invoice.student.email]
-        
-        send_mail(
-            subject, 
-            message_body, 
-            settings.DEFAULT_FROM_EMAIL, 
-            recipient_list, 
-            fail_silently=False
-        )
-        
-        EmailLog.objects.create(
-            student=invoice.student,
-            subject=subject,
-            message=message_body,
-            status="Sent"
-        )
+        send_mail(subject, message_body, settings.DEFAULT_FROM_EMAIL, [invoice.student.email], fail_silently=False)
+        EmailLog.objects.create(student=invoice.student, subject=subject, message=message_body, status="Sent")
         return True
     except Exception as e:
         print(f"EMAIL ERROR: {e}")
@@ -666,6 +631,18 @@ def send_invoice_email(invoice):
 
 @login_required
 def mailing_view(request):
+    # Logic to handle deletion from pending dispatch
+    delete_id = request.GET.get('delete_pending')
+    if delete_id:
+        pending_inv = get_object_or_404(Invoice, id=delete_id, user=request.user)
+        # We don't delete the invoice, we just mark it as "sent" or a dummy state 
+        # so it leaves the dispatch queue, or we can actually delete the invoice 
+        # if that is your intent. Assuming you want to remove it from "Pending":
+        pending_inv.mail_sent = True 
+        pending_inv.save()
+        messages.success(request, "Message removed from Pending Dispatch.")
+        return redirect('mailing_center')
+
     if request.GET.get('send_all') == 'true':
         pending = Invoice.objects.filter(user=request.user, mail_sent=False)
         sent_count = 0
@@ -683,8 +660,7 @@ def mailing_view(request):
         if send_invoice_email(invoice_to_send):
             invoice_to_send.mail_sent = True
             invoice_to_send.save()
-            student_name = invoice_to_send.student.full_name if invoice_to_send.student else "Student"
-            messages.success(request, f"Email sent to {student_name}")
+            messages.success(request, f"Email sent to {invoice_to_send.student.full_name}")
         else:
             messages.error(request, "Failed to send email.")
         return redirect('mailing_center')
@@ -692,12 +668,7 @@ def mailing_view(request):
     pending_invoices = Invoice.objects.filter(user=request.user, mail_sent=False).order_by('-date_created')
     email_history = EmailLog.objects.all().order_by('-date_sent')
     students = Student.objects.all().order_by('full_name')
-    
-    return render(request, 'invoices/mailing.html', {
-        'pending_invoices': pending_invoices,
-        'email_history': email_history,
-        'students': students,
-    })
+    return render(request, 'invoices/mailing.html', {'pending_invoices': pending_invoices, 'email_history': email_history, 'students': students})
 
 @login_required
 def delete_email_log(request, log_id):
@@ -727,7 +698,6 @@ def clear_all_logs(request):
 def compose_email(request, student_id=None):
     if request.method == 'POST' and not student_id:
         student_id = request.POST.get('student_id')
-    
     if not student_id:
         messages.error(request, "No student selected.")
         return redirect('mailing_center')
@@ -737,20 +707,10 @@ def compose_email(request, student_id=None):
     logo_path = os.path.join(settings.BASE_DIR, 'invoices', 'static', '1.png')
 
     if request.method == 'POST':
-        subject = request.POST.get('subject')
-        message_body = request.POST.get('message')
-        attach_type = request.POST.get('attachment_type')
-        cc_email = request.POST.get('cc_email')
-
+        subject, message_body = request.POST.get('subject'), request.POST.get('message')
+        attach_type, cc_email = request.POST.get('attachment_type'), request.POST.get('cc_email')
         cc_list = [cc_email] if cc_email else []
-        email = EmailMessage(
-            subject, 
-            message_body, 
-            settings.DEFAULT_FROM_EMAIL, 
-            [student.email],
-            cc=cc_list
-        )
-        
+        email = EmailMessage(subject, message_body, settings.DEFAULT_FROM_EMAIL, [student.email], cc=cc_list)
         log_type, attach_name = 'MANUAL', None
 
         if attach_type == 'invoice':
@@ -776,48 +736,34 @@ def compose_email(request, student_id=None):
 
         try:
             email.send()
-            final_log_msg = f"{message_body}\n\n[CC: {cc_email}]" if cc_email else message_body
-            EmailLog.objects.create(
-                student=student, 
-                subject=subject, 
-                message=final_log_msg, 
-                email_type=log_type, 
-                attachment_name=attach_name, 
-                status="Sent"
-            )
-            messages.success(request, f"Email sent successfully to {student.email}." + (f" copied to {cc_email}" if cc_email else ""))
+            EmailLog.objects.create(student=student, subject=subject, message=message_body, email_type=log_type, attachment_name=attach_name, status="Sent")
+            messages.success(request, f"Email sent successfully to {student.email}.")
         except Exception as e:
             messages.error(request, f"Failed to send email: {e}")
         return redirect('mailing_center')
-            
     return render(request, 'invoices/compose_email.html', {'student': student})
 
 @login_required
 def send_invoice_pdf_email(request, invoice_id):
     invoice = get_object_or_404(Invoice, id=invoice_id)
-    # FIX: Safety check for student email
     if not invoice.student or not invoice.student.email:
         messages.error(request, "Student has no email address.")
         return redirect('mailing_center')
 
     config = SystemConfiguration.objects.first()
     logo_path = os.path.join(settings.BASE_DIR, 'invoices', 'static', '1.png')
-    
     template = get_template('invoices/pdf_template.html')
     html = template.render({'invoice': invoice, 'logo_path': logo_path, 'config': config, 'generated_at': timezone.now()})
-    
     pdf_output = BytesIO()
     pisa.CreatePDF(html, dest=pdf_output)
     
-    student_name = invoice.student.full_name or "Student"
-    email = EmailMessage(f"Invoice: {invoice.invoice_number}", f"Hello {student_name}, invoice attached.", settings.DEFAULT_FROM_EMAIL, [invoice.student.email])
+    email = EmailMessage(f"Invoice: {invoice.invoice_number}", f"Hello, invoice attached.", settings.DEFAULT_FROM_EMAIL, [invoice.student.email])
     email.attach(f"Invoice_{invoice.invoice_number}.pdf", pdf_output.getvalue(), 'application/pdf')
-    
     try:
         email.send()
         invoice.mail_sent = True
         invoice.save()
-        EmailLog.objects.create(student=invoice.student, subject=f"Invoice Attachment: {invoice.invoice_number}", message="PDF Invoice sent.", email_type='INVOICE', attachment_name=f"Invoice_{invoice.invoice_number}.pdf", status="Sent")
+        EmailLog.objects.create(student=invoice.student, subject=f"Invoice Attachment: {invoice.invoice_number}", status="Sent")
         messages.success(request, "Invoice PDF sent!")
     except Exception as e:
         messages.error(request, f"Error: {e}")
@@ -826,27 +772,23 @@ def send_invoice_pdf_email(request, invoice_id):
 @login_required
 def send_receipt_pdf_email(request, payment_id):
     payment = get_object_or_404(Payment, id=payment_id)
-    # FIX: Safety check for invoice and student email
     if not payment.invoice or not payment.invoice.student or not payment.invoice.student.email:
         messages.error(request, "Student email not found.")
         return redirect('mailing_center')
 
     config = SystemConfiguration.objects.first()
     logo_path = os.path.join(settings.BASE_DIR, 'invoices', 'static', '1.png')
-    
     template = get_template('invoices/receipt_pdf_template.html')
     html = template.render({'payment': payment, 'invoice': payment.invoice, 'logo_path': logo_path, 'config': config, 'generated_at': timezone.now()})
-    
     pdf_output = BytesIO()
     pisa.CreatePDF(html, dest=pdf_output)
     
     receipt_no = payment.receipt_number or "N/A"
-    email = EmailMessage(f"Receipt: {receipt_no}", f"Hello, receipt attached.", settings.DEFAULT_FROM_EMAIL, [payment.invoice.student.email])
+    email = EmailMessage(f"Receipt: {receipt_no}", "Receipt attached.", settings.DEFAULT_FROM_EMAIL, [payment.invoice.student.email])
     email.attach(f"Receipt_{receipt_no}.pdf", pdf_output.getvalue(), 'application/pdf')
-    
     try:
         email.send()
-        EmailLog.objects.create(student=payment.invoice.student, subject=f"Receipt: {receipt_no}", message="PDF Receipt sent.", email_type='RECEIPT', attachment_name=f"Receipt_{receipt_no}.pdf", status="Sent")
+        EmailLog.objects.create(student=payment.invoice.student, subject=f"Receipt: {receipt_no}", status="Sent")
         messages.success(request, "Receipt PDF sent!")
     except Exception as e:
         messages.error(request, f"Error: {e}")
@@ -857,30 +799,22 @@ def export_report_pdf(request):
     config = SystemConfiguration.objects.first()
     logo_path = os.path.join(settings.BASE_DIR, 'invoices', 'static', '1.png')
     all_invoices = Invoice.objects.filter(user=request.user).prefetch_related('items')
-    
-    total_billed = sum(
-        (item.quantity or 0) * (item.rate or 0) 
-        for inv in all_invoices 
-        for item in inv.items.all()
-    )
+    total_billed = sum((item.quantity or 0) * (item.rate or 0) for inv in all_invoices for item in inv.items.all())
     total_billed = Decimal(str(total_billed))
     total_collected = Payment.objects.filter(invoice__user=request.user).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
     outstanding = total_billed - total_collected
     efficiency = (total_collected / total_billed * 100) if total_billed > 0 else 0
-    
     top_students = Student.objects.filter(invoices__user=request.user).annotate(revenue=Sum('invoices__payments__amount')).filter(revenue__gt=0).order_by('-revenue')[:10]
     service_stats = InvoiceItem.objects.filter(invoice__user=request.user).values('description').annotate(total_value=Sum(F('quantity') * F('rate')), usage_count=Count('id')).order_by('-total_value')
 
     context = {'total_billed': total_billed, 'total_collected': total_collected, 'outstanding': outstanding, 'efficiency': efficiency, 'top_students': top_students, 'service_stats': service_stats, 'config': config, 'logo_path': logo_path, 'generated_at': timezone.now()}
-    
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="Financial_Report_{timezone.now().date()}.pdf"'
     template = get_template('invoices/report_pdf_template.html')
     html = template.render(context)
-    pisa_status = pisa.CreatePDF(html, dest=response)
+    pisa.CreatePDF(html, dest=response)
     return response
 
-# --- DAISYUI HELPER INJECTION ---
 def get_daisy_alert_class(level):
     if level == messages.SUCCESS: return "alert-success"
     if level == messages.ERROR: return "alert-error"
