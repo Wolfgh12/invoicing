@@ -32,23 +32,19 @@
     }
 
     [data-bs-theme="dark"] {
-        --color-navy: #D4AF37; /* Navy text/elements turn Gold */
+        --color-navy: #D4AF37; 
         --color-navy-deep: #000b18;
         --bg-main-card: #001630;
-        --text-student: #ffffff; /* Names turn White */
+        --text-student: #ffffff;
     }
 
-    /* --- LAYOUT FIXES --- */
     html, body { height: auto !important; overflow-y: auto !important; }
     
-    /* Ensure the main card background actually changes */
     .main-dashboard-card { background-color: var(--bg-main-card) !important; }
 
-    /* Student Name & Values Visibility */
     .student-name-text { color: var(--text-student) !important; }
     [data-bs-theme="dark"] .text-gray-400 { color: rgba(212, 175, 55, 0.6) !important; }
 
-    /* Search & Inputs */
     .search-input {
         width: 100% !important;
         padding: 1.25rem 1rem 1.25rem 3.5rem !important;
@@ -73,7 +69,6 @@
         border: 2px solid #D4AF37 !important;
     }
 
-    /* Animations */
     .animate-page-in { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     @keyframes slideUp {
         from { opacity: 0; transform: translateY(30px); }
@@ -267,12 +262,16 @@
 </div>
 
 <div id="deleteModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
-    <div class="absolute inset-0 bg-navy/80 backdrop-blur-sm"></div>
-    <div class="relative bg-white dark:bg-navy-deep w-full max-w-md rounded-2xl-plus p-8 text-center animate-page-in">
-        <h3 class="text-2xl font-black text-navy dark:text-white mb-8">Confirm Deletion?</h3>
+    <div class="absolute inset-0 bg-navy/80 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div class="relative bg-white dark:bg-navy-deep w-full max-w-md rounded-2xl-plus p-8 text-center animate-page-in shadow-2xl">
+        <div class="text-red-500 mb-4">
+            <i class="fas fa-exclamation-circle fa-4x"></i>
+        </div>
+        <h3 class="text-2xl font-black text-navy dark:text-white mb-2">Confirm Deletion?</h3>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-8">This action is permanent and cannot be undone.</p>
         <div class="flex space-x-4">
-            <button onclick="closeModal()" class="flex-1 px-6 py-4 bg-gray-100 dark:bg-navy text-navy dark:text-white rounded-xl font-black text-[10px] uppercase">Cancel</button>
-            <button id="confirmDeleteBtn" class="flex-1 px-6 py-4 bg-red-500 text-white rounded-xl font-black text-[10px] uppercase">Confirm</button>
+            <button onclick="closeModal()" class="flex-1 px-6 py-4 bg-gray-100 dark:bg-navy text-navy dark:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-gray-200">Cancel</button>
+            <button id="confirmDeleteBtn" class="flex-1 px-6 py-4 bg-red-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/30 transition-all hover:bg-red-600">Confirm</button>
         </div>
     </div>
 </div>
@@ -287,30 +286,50 @@
     let currentDeleteId = null;
     let deleteMode = 'single';
 
-    selectAll.addEventListener('change', (e) => {
-        checkboxes.forEach(cb => cb.checked = e.target.checked);
-        toggleBulkButton();
-    });
+    // Bulk selection logic
+    if (selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+            toggleBulkButton();
+        });
+    }
+
     checkboxes.forEach(cb => cb.addEventListener('change', toggleBulkButton));
+
     function toggleBulkButton() {
         const count = document.querySelectorAll('.invoice-checkbox:checked').length;
-        bulkBtn.classList.toggle('hidden', count === 0);
-        bulkBtn.classList.toggle('flex', count > 0);
+        if (bulkBtn) {
+            bulkBtn.classList.toggle('hidden', count === 0);
+            bulkBtn.classList.toggle('flex', count > 0);
+        }
     }
-    function openModal(mode, id = null) {
-        deleteMode = mode; currentDeleteId = id;
-        modal.classList.remove('hidden'); modal.classList.add('flex');
-    }
-    function closeModal() { modal.classList.add('hidden'); modal.classList.remove('flex'); }
 
-    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
-        if (deleteMode === 'bulk') document.getElementById('bulkDeleteForm').submit();
-        else {
+    // Modal Control
+    function openModal(mode, id = null) {
+        deleteMode = mode; 
+        currentDeleteId = id;
+        modal.classList.remove('hidden'); 
+        modal.classList.add('flex');
+    }
+
+    function closeModal() { 
+        modal.classList.add('hidden'); 
+        modal.classList.remove('flex'); 
+    }
+
+    // Execution logic
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function(e) {
+        e.preventDefault(); // Stop any default browser behavior
+        if (deleteMode === 'bulk') {
+            document.getElementById('bulkDeleteForm').submit();
+        } else {
             const form = document.getElementById('singleDeleteForm');
-            form.action = `/delete/${currentDeleteId}/`; form.submit();
+            form.action = `/delete/${currentDeleteId}/`; 
+            form.submit();
         }
     });
 
+    // Message Fading
     document.addEventListener('DOMContentLoaded', function() {
         const messages = document.querySelectorAll('.message-container');
         messages.forEach(msg => {
