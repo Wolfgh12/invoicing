@@ -154,14 +154,12 @@
         --border-gold-light: rgba(212, 175, 55, 0.3);
     }
 
-    /* --- CLICKABLE ROW LOGIC --- */
     .clickable-row:hover {
         background-color: rgba(0, 33, 71, 0.02) !important;
         transform: scale(1.002);
         transition: all 0.2s ease-in-out;
     }
 
-    /* --- DARK MODE HIJACK --- */
     [data-bs-theme="dark"] #student-db-wrapper,
     [data-bs-theme="dark"] .modal-content {
         --text-main: var(--ugc-gold) !important;
@@ -213,7 +211,6 @@
 
     [data-bs-theme="dark"] .btn-edit { background: #1f2937; color: #cbd5e0; }
 
-    /* --- STANDARD STYLES --- */
     .text-navy { color: var(--ugc-navy); }
     
     .btn-gold-search { 
@@ -269,6 +266,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Handle row clicking
         const rows = document.querySelectorAll('.clickable-row');
         rows.forEach(row => {
             row.addEventListener('click', function(e) {
@@ -277,17 +275,21 @@
                 }
             });
         });
-    });
 
-    const deleteModal = document.getElementById('deleteModal')
-    deleteModal.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget
-        const studentId = button.getAttribute('data-id')
-        const studentName = button.getAttribute('data-name')
-        
-        document.getElementById('studentName').textContent = studentName
-        const form = document.getElementById('deleteForm')
-        form.action = `/students/delete/${studentId}/`
-    })
+        // Handle Modal Data Population
+        const deleteModal = document.getElementById('deleteModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const studentId = button.getAttribute('data-id');
+                const studentName = button.getAttribute('data-name');
+                
+                document.getElementById('studentName').textContent = studentName;
+                const form = document.getElementById('deleteForm');
+                // Correctly routes to your delete view with the ID
+                form.action = `/students/delete/${studentId}/`;
+            });
+        }
+    });
 </script>
 {% endblock %}
