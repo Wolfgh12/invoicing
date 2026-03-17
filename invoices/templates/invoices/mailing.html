@@ -64,6 +64,9 @@
                                         <a href="{% url 'send_invoice_pdf_email' inv.id %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 adaptive-outline-btn">
                                             <i class="fas fa-file-pdf me-1"></i> Send with PDF
                                         </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 ms-2" data-bs-toggle="modal" data-bs-target="#deletePendingModal{{ inv.id }}">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -143,6 +146,24 @@
         </div>
     </div>
 </div>
+
+{% for inv in pending_invoices %}
+<div class="modal fade" id="deletePendingModal{{ inv.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content adaptive-card">
+            <div class="modal-body p-4 text-center">
+                <i class="fas fa-exclamation-circle text-danger fa-2x mb-3"></i>
+                <h6 class="fw-bold adaptive-text-main">Remove Pending?</h6>
+                <p class="adaptive-muted small mb-4">Remove invoice <strong>{{ inv.invoice_number }}</strong> for <strong>{{ inv.student.full_name }}</strong> from dispatch?</p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-light btn-sm px-3 adaptive-badge" data-bs-dismiss="modal">Cancel</button>
+                    <a href="?delete_pending={{ inv.id }}" class="btn btn-danger btn-sm px-3">Remove</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 <div class="modal fade" id="clearAllLogsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-sm modal-dialog-centered">
@@ -383,13 +404,9 @@
 
     // Initialize Pagination for both tables
     document.addEventListener('DOMContentLoaded', function() {
-        // 1. Pending Invoices (Main Table)
         setupPagination('.pending-row', 6, 'pendingPaginationInfo', 'pendingNumberedPagination');
-
-        // 2. Full History Modal
         const historyPager = setupPagination('.log-row', 8, 'paginationInfo', 'numberedPagination');
 
-        // History Search
         const searchInput = document.getElementById('logSearchInput');
         if(searchInput) {
             searchInput.addEventListener('input', (e) => historyPager.updateFilter(e.target.value));
