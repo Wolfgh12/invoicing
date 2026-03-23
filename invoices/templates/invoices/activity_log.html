@@ -1,0 +1,237 @@
+{% extends 'invoices/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    /* Royal Theme Enhancements */
+    .pulse-card {
+        background: var(--card-bg, #ffffff);
+        border: 1px solid rgba(0, 33, 71, 0.1);
+        border-radius: 20px;
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    .pulse-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 33, 71, 0.08);
+    }
+    .status-badge {
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+    }
+    .search-console {
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(10px);
+        border-radius: 25px;
+        border: 1px solid var(--ugc-gold);
+        padding: 1.5rem;
+    }
+    .timeline-date {
+        background: var(--ugc-navy);
+        color: white;
+        border-radius: 12px;
+        width: 55px;
+        height: 65px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .timeline-date span {
+        line-height: 1;
+        font-weight: 800;
+    }
+    .avatar-circle {
+        width: 45px;
+        height: 45px;
+        background: var(--ugc-gold);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--ugc-navy);
+        font-weight: bold;
+    }
+    .pagination .page-link {
+        border-radius: 8px;
+        margin: 0 3px;
+        color: var(--ugc-navy);
+        font-weight: bold;
+    }
+    .pagination .active .page-link {
+        background-color: var(--ugc-navy);
+        border-color: var(--ugc-navy);
+    }
+</style>
+
+<div class="container-fluid py-4">
+
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show shadow-sm rounded-3 fw-bold" role="alert">
+                <i class="fa-solid fa-circle-exclamation me-2"></i> {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-end mb-5 gap-4">
+        <div>
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <div class="p-3 rounded-4" style="background: rgba(195, 155, 94, 0.1);">
+                    <i class="fa-solid fa-shield-halved" style="color: var(--ugc-gold); font-size: 1.5rem;"></i>
+                </div>
+                <h1 class="display-5 fw-black m-0" style="color: var(--ugc-navy); font-weight: 800;">System Pulse</h1>
+            </div>
+            <p class="text-muted fw-medium ms-1">Audit trail of all administrative and security actions</p>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <a href="{% url 'dashboard' %}" class="btn btn-light border shadow-sm px-4 fw-bold rounded-3">
+                <i class="fa-solid fa-arrow-left me-2"></i> Dashboard
+            </a>
+            <div class="bg-white border rounded-3 px-4 py-2 shadow-sm text-center">
+                <small class="text-uppercase fw-bold text-muted d-block" style="font-size: 0.6rem;">
+                    {% if query %}Filtered Results{% else %}Archived Events{% endif %}
+                </small>
+                <span class="h4 fw-bold m-0" style="color: var(--ugc-navy);">{{ results_count|default:activities.paginator.count }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="search-console mb-5 shadow-sm">
+        <form method="GET" action="{% url 'activity_log' %}" id="searchForm" class="row g-3 align-items-center">
+            <div class="col-lg-10">
+                <div class="input-group">
+                    <span class="input-group-text bg-transparent border-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" name="q" id="searchInput" value="{{ query|default:'' }}" 
+                           class="form-control border-0 bg-transparent fw-medium" 
+                           placeholder="Search by name, email, date (e.g. '15'), or month (e.g. 'March')...">
+                </div>
+            </div>
+            <div class="col-lg-2">
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn fw-bold w-100 rounded-3 shadow-sm" style="background: var(--ugc-navy); color: white;">
+                        Search
+                    </button>
+                    {% if query %}
+                    <a href="{% url 'activity_log' %}" class="btn btn-outline-danger border-0 rounded-circle d-flex align-items-center justify-content-center" style="width: 40px;" title="Clear Filters">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="row g-4" id="logResults">
+        {% for activity in activities %}
+        <div class="col-12">
+            <div class="pulse-card p-4 d-flex flex-column flex-md-row align-items-md-center gap-4">
+                <div class="d-flex align-items-center gap-3" style="min-width: 160px;">
+                    <div class="timeline-date shadow-sm">
+                        <span style="font-size: 0.6rem; text-transform: uppercase; opacity: 0.8;">{{ activity.timestamp|date:"M" }}</span>
+                        <span style="font-size: 1.4rem;">{{ activity.timestamp|date:"d" }}</span>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark mb-0">{{ activity.timestamp|date:"l" }}</div>
+                        <small class="text-muted"><i class="fa-regular fa-clock me-1"></i> {{ activity.timestamp|time:"H:i:s" }}</small>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-3 border-start ps-4" style="min-width: 250px;">
+                    <div class="avatar-circle shadow-sm">
+                        {% if activity.user.student_profile and activity.user.student_profile.profile_image %}
+                            <img src="{{ activity.user.student_profile.profile_image.url }}" class="rounded-3" style="width: 100%; height: 100%; object-fit: cover;">
+                        {% else %}
+                            {{ activity.user.username|slice:":1"|upper }}
+                        {% endif %}
+                    </div>
+                    <div class="overflow-hidden">
+                        <div class="fw-bold text-dark text-truncate">{{ activity.user.get_full_name|default:activity.user.username }}</div>
+                        <small class="text-muted d-block text-truncate">{{ activity.user.email }}</small>
+                    </div>
+                </div>
+
+                <div class="flex-grow-1 border-start ps-4">
+                    <div class="mb-1">
+                        <span class="status-badge 
+                            {% if activity.category == 'CREATE' %}bg-success-subtle text-success
+                            {% elif activity.category == 'DELETE' %}bg-danger-subtle text-danger
+                            {% elif activity.category == 'UPDATE' %}bg-warning-subtle text-warning
+                            {% else %}bg-primary-subtle text-primary{% endif %}">
+                            {{ activity.get_category_display }}
+                        </span>
+                    </div>
+                    <p class="mb-0 fw-medium text-secondary" style="font-size: 0.95rem;">{{ activity.action }}</p>
+                </div>
+
+                <div class="text-md-end">
+                    <div class="d-inline-flex align-items-center gap-2 px-3 py-2 rounded-3 bg-light text-muted">
+                        <i class="fa-solid fa-check-double" style="font-size: 0.7rem;"></i>
+                        <span class="fw-bold text-uppercase" style="font-size: 0.6rem; letter-spacing: 1px;">Verified</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 py-5 text-center bg-white rounded-5 border border-dashed">
+            <i class="fa-solid fa-inbox display-1 text-light mb-4"></i>
+            <h3 class="fw-bold text-muted">No Logs Found</h3>
+            <p class="text-secondary">Try searching for a different name, date, or action.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if activities.has_other_pages %}
+    <nav class="mt-5 d-flex justify-content-center">
+        <ul class="pagination shadow-sm p-2 bg-white rounded-4">
+            {% if activities.has_previous %}
+            <li class="page-item">
+                <a class="page-link border-0" href="?page={{ activities.previous_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="fa-solid fa-chevron-left"></i></a>
+            </li>
+            {% endif %}
+            
+            <li class="page-item disabled">
+                <span class="page-link border-0 text-uppercase fw-bold" style="font-size: 0.7rem; padding-top: 12px;">Page {{ activities.number }} of {{ activities.paginator.num_pages }}</span>
+            </li>
+
+            {% if activities.has_next %}
+            <li class="page-item">
+                <a class="page-link border-0" href="?page={{ activities.next_page_number }}{% if query %}&q={{ query }}{% endif %}"><i class="fa-solid fa-chevron-right"></i></a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchForm = document.getElementById('searchForm');
+    const searchInput = document.getElementById('searchInput');
+
+    searchForm.addEventListener('submit', function(e) {
+        const queryValue = searchInput.value.trim();
+        if (!queryValue) {
+            e.preventDefault();
+            window.location.href = "{% url 'activity_log' %}";
+        }
+    });
+
+    searchInput.addEventListener('input', function() {
+        if (this.value === '') {
+            window.location.href = "{% url 'activity_log' %}";
+        }
+    });
+});
+</script>
+{% endblock %}

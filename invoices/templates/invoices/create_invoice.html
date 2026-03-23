@@ -7,6 +7,21 @@
         <p class="text-muted">Enter details below to generate a new financial record.</p>
     </div>
 
+    {% if form.errors or formset.errors %}
+    <div class="alert alert-danger shadow-sm rounded-4 mb-4">
+        <div class="d-flex">
+            <i class="fas fa-exclamation-circle me-2 mt-1"></i>
+            <div>
+                <strong class="d-block">Save Failed: Please correct the following:</strong>
+                <ul class="mb-0 small">
+                    {% for field in form %}{% for error in field.errors %}<li>{{ field.label }}: {{ error }}</li>{% endfor %}{% endfor %}
+                    {% for dict in formset.errors %}{% for key, data in dict.items %}<li>Item {{ forloop.parentloop.counter }}: {{ data }}</li>{% endfor %}{% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <form method="post" id="invoice-form">
         {% csrf_token %}
         
@@ -19,16 +34,42 @@
                         {{ form.student }}
                     </div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-6 col-md-2">
                     <label class="form-label fw-semibold">Invoice #</label>
                     {{ form.invoice_number }}
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-6 col-md-2">
+                    <label class="form-label fw-semibold">Currency</label>
+                    {{ form.currency }}
+                </div>
+                <div class="col-12 col-md-2">
                     <label class="form-label fw-semibold">Due Date</label>
                     {{ form.due_date }}
                 </div>
                 <div class="col-12 d-none">
                     {{ form.invoice_type }}
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+            <h5 class="fw-bold mb-3" style="color: var(--ugc-navy);">Bank Account Details (Optional)</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold small text-uppercase">Account Name</label>
+                    {{ form.account_name }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold small text-uppercase">Account Number</label>
+                    {{ form.account_number }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold small text-uppercase">Bank Name</label>
+                    {{ form.bank_name }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold small text-uppercase">Branch</label>
+                    {{ form.branch_name }}
                 </div>
             </div>
         </div>
@@ -47,7 +88,7 @@
                         <tr>
                             <th class="ps-4">Description</th>
                             <th style="width: 15%;">Qty</th>
-                            <th style="width: 20%;">Rate (GHS)</th>
+                            <th style="width: 20%;">Rate (<span class="currency-label">GHS</span>)</th>
                             <th style="width: 15%;">Total</th>
                             <th class="pe-4"></th>
                         </tr>
@@ -55,10 +96,12 @@
                     <tbody id="item-rows">
                         {% for item_form in formset %}
                         <tr class="item-row animate-row">
-                            <td class="ps-4" data-label="Description">{{ item_form.description }}</td>
+                            <td class="ps-4" data-label="Description">
+                                {{ item_form.id }} {{ item_form.description }}
+                            </td>
                             <td data-label="Qty">{{ item_form.quantity }}</td>
-                            <td data-label="Rate (GHS)">{{ item_form.rate }}</td>
-                            <td data-label="Total" class="fw-bold">GHS <span class="line-total">0.00</span></td>
+                            <td data-label="Rate (<span class='currency-label'>GHS</span>)">{{ item_form.rate }}</td>
+                            <td data-label="Total" class="fw-bold"><span class="currency-label">GHS</span> <span class="line-total">0.00</span></td>
                             <td class="pe-4 text-end action-cell">
                                 <button type="button" class="btn btn-link text-danger remove-row-btn p-0">
                                     <i class="fas fa-minus-circle fa-lg"></i>
@@ -84,7 +127,7 @@
             <div class="col-md-6 text-md-end">
                 <div class="d-inline-block p-3 rounded-4 shadow-sm border border-gold-light mb-3 total-box w-100-mobile">
                     <h5 class="text-muted mb-1 small uppercase fw-bold">Grand Total</h5>
-                    <h2 class="fw-bold mb-0 total-amount-text">GHS <span id="grand-total">0.00</span></h2>
+                    <h2 class="fw-bold mb-0 total-amount-text"><span class="currency-label">GHS</span> <span id="grand-total">0.00</span></h2>
                 </div>
                 <br>
                 <button type="submit" class="btn btn-ugc btn-lg px-5 py-3 rounded-pill shadow w-100-mobile">
@@ -103,7 +146,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body px-4 pb-4">
-                <p class="adaptive-text-main fw-600 mb-0">Nana, you need at least one item on this invoice to proceed.</p>
+                <p class="adaptive-text-main fw-600 mb-0">You need at least one item on this invoice to proceed.</p>
                 <p class="text-muted small mt-2">Every invoice must have a description and a rate before it can be saved.</p>
             </div>
             <div class="modal-footer border-0 px-4 pb-4">
@@ -239,7 +282,33 @@
 </style>
 
 <script>
-    // UPDATE: Pick exactly what is typed in Description
+    // --- START AUTO-GENERATE UPDATE ---
+    document.querySelector('select[name="student"]').addEventListener('change', function() {
+        const invoiceNumField = document.querySelector('input[name="invoice_number"]');
+        
+        // Only generate if the field is currently empty
+        if (this.value && (!invoiceNumField.value || invoiceNumField.value === "")) {
+            fetch("{% url 'generate_invoice_number' %}")
+                .then(response => response.json())
+                .then(data => {
+                    invoiceNumField.value = data.invoice_number;
+                })
+                .catch(err => console.error('Error fetching invoice number:', err));
+        }
+    });
+    // --- END AUTO-GENERATE UPDATE ---
+
+    function updateCurrencyLabels() {
+        const currencySelect = document.querySelector('select[name="currency"]');
+        const labels = document.querySelectorAll('.currency-label');
+        if (currencySelect) {
+            let displayValue = currencySelect.value.replace('GHS', 'GHS');
+            labels.forEach(el => {
+                el.innerText = displayValue;
+            });
+        }
+    }
+
     function updateInvoiceType() {
         const firstRowDescInput = document.querySelector('.item-row:first-child input[name$="-description"]');
         const invoiceTypeField = document.querySelector('[name="invoice_type"]');
@@ -247,7 +316,6 @@
         if (firstRowDescInput && invoiceTypeField) {
             let val = firstRowDescInput.value.trim();
             if (val !== "") {
-                // Capitalize first letter for a cleaner look on dashboard
                 invoiceTypeField.value = val.charAt(0).toUpperCase() + val.slice(1);
             } else {
                 invoiceTypeField.value = "General";
@@ -256,24 +324,29 @@
     }
 
     function calculateGrandTotal() {
-        let grandTotal = 0;
+        let itemsTotal = 0;
         document.querySelectorAll('.item-row').forEach(row => {
             const qtyInput = row.querySelector('input[name$="-quantity"]');
             const rateInput = row.querySelector('input[name$="-rate"]');
+            const lineTotalDisplay = row.querySelector('.line-total');
             
             if (qtyInput && rateInput) {
                 const qty = parseFloat(qtyInput.value) || 0;
                 const rate = parseFloat(rateInput.value) || 0;
-                const total = qty * rate;
+                const rowTotal = qty * rate;
                 
-                row.querySelector('.line-total').innerText = total.toFixed(2);
-                grandTotal += total;
+                if (lineTotalDisplay) {
+                    lineTotalDisplay.innerText = rowTotal.toFixed(2);
+                }
+                itemsTotal += rowTotal;
             }
         });
-        document.getElementById('grand-total').innerText = grandTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+
+        document.getElementById('grand-total').innerText = itemsTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
         document.getElementById('item-count').innerText = document.querySelectorAll('.item-row').length;
         
         updateInvoiceType();
+        updateCurrencyLabels();
     }
 
     document.getElementById('add-item-btn').addEventListener('click', function() {
@@ -286,11 +359,13 @@
         const newRow = lastRow.cloneNode(true);
 
         newRow.querySelectorAll('input, select, textarea').forEach(input => {
-            const name = input.name.replace(`-${currentCount-1}-`, `-${currentCount}-`);
-            const id = input.id.replace(`-${currentCount-1}-`, `-${currentCount}-`);
+            const name = input.name.replace(/-\d+-/, `-${currentCount}-`);
+            const id = input.id.replace(/-\d+-/, `-${currentCount}-`);
             input.name = name;
             input.id = id;
             input.value = ''; 
+            input.readOnly = false;
+            input.style.backgroundColor = "";
         });
 
         newRow.querySelector('.line-total').innerText = '0.00';
@@ -301,7 +376,8 @@
     });
 
     document.getElementById('invoice-form').addEventListener('input', function(e) {
-        if (e.target.name.includes('-quantity') || e.target.name.includes('-rate') || e.target.name.includes('-description')) {
+        const triggerFields = ['-quantity', '-rate', '-description', 'currency'];
+        if (triggerFields.some(field => e.target.name.includes(field))) {
             calculateGrandTotal();
         }
     });
@@ -325,9 +401,6 @@
                 });
 
                 calculateGrandTotal();
-            } else {
-                var myModal = new bootstrap.Modal(document.getElementById('validationModal'));
-                myModal.show();
             }
         }
     });

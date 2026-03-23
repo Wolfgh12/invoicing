@@ -1,0 +1,31 @@
+{% extends "admin/login.html" %}
+{% load i18n %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .back-btn-container {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .back-btn-container a {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #417690;
+        color: white !important;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+    .back-btn-container a:hover {
+        background: #205067;
+    }
+</style>
+{% endblock %}
+
+{% block form_top %}
+    <div class="back-btn-container">
+        <a href="/">← {% trans 'Back to Site' %}</a>
+    </div>
+    {{ block.super }}
+{% endblock %}

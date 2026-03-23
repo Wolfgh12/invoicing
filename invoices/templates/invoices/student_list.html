@@ -7,9 +7,15 @@
             <h2 class="fw-bold text-navy mb-1 header-title" style="letter-spacing: -1px;">Student Database</h2>
             <p class="text-muted mb-0 adaptive-muted">Manage institutional records and academic profiles.</p>
         </div>
-        <a href="{% url 'add_student' %}" class="btn btn-ugc px-4 py-2 shadow-sm rounded-pill d-flex align-items-center fw-bold">
-            <i class="fas fa-user-plus me-2"></i> Register Student
-        </a>
+        <div class="d-flex align-items-center">
+            <button type="button" id="bulk-delete-btn" class="btn btn-outline-danger px-4 py-2 shadow-sm rounded-pill d-none align-items-center fw-bold me-2" data-bs-toggle="modal" data-bs-target="#bulkDeleteModal">
+                <i class="fas fa-trash-alt me-2"></i> Bulk Delete (<span id="selected-count">0</span>)
+            </button>
+            
+            <a href="{% url 'add_student' %}" class="btn btn-ugc px-4 py-2 shadow-sm rounded-pill d-flex align-items-center fw-bold">
+                <i class="fas fa-user-plus me-2"></i> Register Student
+            </a>
+        </div>
     </div>
 
     <div class="row mb-4">
@@ -34,84 +40,89 @@
         {% endif %}
     </div>
 
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden animate-slide-up adaptive-card">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr class="bg-light adaptive-thead">
-                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Student Info</th>
-                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Index Number</th>
-                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Level</th>
-                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Program</th>
-                            <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0 text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for student in students %}
-                        <tr class="adaptive-row clickable-row" 
-                            data-href="{% url 'student_detail' student.id %}" 
-                            style="cursor: pointer;">
-                            <td class="px-4 py-3">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-container me-3">
-                                        {% if student.profile_image %}
-                                            <img src="{{ student.profile_image.url }}" alt="{{ student.full_name }}" 
-                                                 class="avatar-circle shadow-sm object-cover border border-2 border-gold-light">
-                                        {% else %}
-                                            <div class="avatar-circle shadow-sm adaptive-avatar">
-                                                {{ student.full_name|slice:":1"|upper }}
-                                            </div>
-                                        {% endif %}
+    <form id="bulk-delete-form" method="POST" action="{% url 'bulk_delete_students' %}">
+        {% csrf_token %}
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden animate-slide-up adaptive-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr class="bg-light adaptive-thead">
+                                <th class="px-4 py-3 border-0" style="width: 40px;">
+                                    <input type="checkbox" id="select-all-students" class="form-check-input">
+                                </th>
+                                <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Student Info</th>
+                                <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Index Number</th>
+                                <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0">Program</th>
+                                <th class="px-4 py-3 text-uppercase fs-xs fw-bold text-muted border-0 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for student in students %}
+                            <tr class="adaptive-row clickable-row" 
+                                data-href="{% url 'student_detail' student.id %}" 
+                                style="cursor: pointer;">
+                                <td class="px-4 py-3 stop-propagation">
+                                    <input type="checkbox" name="student_ids" value="{{ student.id }}" class="form-check-input student-checkbox">
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-container me-3">
+                                            {% if student.profile_image %}
+                                                <img src="{{ student.profile_image.url }}" alt="{{ student.full_name }}" 
+                                                     class="avatar-circle shadow-sm object-cover border border-2 border-gold-light">
+                                            {% else %}
+                                                <div class="avatar-circle shadow-sm adaptive-avatar">
+                                                    {{ student.full_name|slice:":1"|upper }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold text-navy h6 mb-0 adaptive-text-main">{{ student.full_name }}</div>
+                                            <div class="small text-muted adaptive-muted">{{ student.email|default:"No email provided" }}</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div class="fw-bold text-navy h6 mb-0 adaptive-text-main">{{ student.full_name }}</div>
-                                        <div class="small text-muted adaptive-muted">{{ student.email|default:"No email provided" }}</div>
+                                </td>
+                                <td class="px-4 py-3 fw-medium text-secondary">
+                                    <code class="adaptive-code px-2 py-1 rounded">{{ student.index_number }}</code>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="badge program-badge px-3 py-2">
+                                        {{ student.program|default:"General" }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="d-flex justify-content-center gap-2">
+                                        <a href="{% url 'edit_student' student.id %}" class="btn btn-action btn-edit stop-propagation" title="Edit Student">
+                                            <i class="fas fa-pen"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-action btn-delete stop-propagation" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#deleteModal" 
+                                                data-id="{{ student.id }}" 
+                                                data-name="{{ student.full_name }}"
+                                                title="Delete Student">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
                                     </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 fw-medium text-secondary">
-                                <code class="adaptive-code px-2 py-1 rounded">{{ student.index_number }}</code>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="adaptive-muted small fw-bold">Level {{ student.level }}</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="badge program-badge px-3 py-2">
-                                    {{ student.program|default:"General" }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <div class="d-flex justify-content-center gap-2">
-                                    <a href="{% url 'edit_student' student.id %}" class="btn btn-action btn-edit stop-propagation" title="Edit Student">
-                                        <i class="fas fa-pen"></i>
-                                    </a>
-                                    <button class="btn btn-action btn-delete stop-propagation" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#deleteModal" 
-                                            data-id="{{ student.id }}" 
-                                            data-name="{{ student.full_name }}"
-                                            title="Delete Student">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center py-5">
-                                <div class="py-4">
-                                    <i class="fas fa-user-slash fa-3x mb-3 text-light-gray"></i>
-                                    <p class="text-muted fw-bold adaptive-muted">{% if query %}No results for "{{ query }}"{% else %}The database is empty.{% endif %}</p>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="py-4">
+                                        <i class="fas fa-user-slash fa-3x mb-3 text-light-gray"></i>
+                                        <p class="text-muted fw-bold adaptive-muted">{% if query %}No results for "{{ query }}"{% else %}The database is empty.{% endif %}</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
+    </form>
 
     {% if students.has_other_pages %}
     <div class="mt-5 border-top pt-4">
@@ -147,6 +158,24 @@
     </div>
 </div>
 
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4 adaptive-card">
+            <div class="modal-body text-center p-5">
+                <div class="text-danger mb-4">
+                    <i class="fas fa-trash-alt fa-4x"></i>
+                </div>
+                <h3 class="fw-bold text-navy mb-2 adaptive-text-main">Bulk Delete?</h3>
+                <p class="text-muted adaptive-muted">You have selected <strong id="bulk-count-display">0</strong> students. Removing them will delete all associated records. This cannot be undone.</p>
+                <div class="d-flex justify-content-center gap-2 mt-4">
+                    <button type="button" class="btn btn-light px-4 rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger px-4 rounded-pill shadow-sm" id="confirm-bulk-delete">Yes, Delete All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     :root {
         --ugc-navy: #002147;
@@ -154,14 +183,12 @@
         --border-gold-light: rgba(212, 175, 55, 0.3);
     }
 
-    /* --- CLICKABLE ROW LOGIC --- */
     .clickable-row:hover {
         background-color: rgba(0, 33, 71, 0.02) !important;
         transform: scale(1.002);
         transition: all 0.2s ease-in-out;
     }
 
-    /* --- DARK MODE HIJACK --- */
     [data-bs-theme="dark"] #student-db-wrapper,
     [data-bs-theme="dark"] .modal-content {
         --text-main: var(--ugc-gold) !important;
@@ -213,7 +240,6 @@
 
     [data-bs-theme="dark"] .btn-edit { background: #1f2937; color: #cbd5e0; }
 
-    /* --- STANDARD STYLES --- */
     .text-navy { color: var(--ugc-navy); }
     
     .btn-gold-search { 
@@ -261,6 +287,11 @@
     .fs-xs { font-size: 0.7rem; }
     .text-light-gray { color: #e2e8f0; }
 
+    .form-check-input:checked {
+        background-color: var(--ugc-gold);
+        border-color: var(--ugc-gold);
+    }
+
     .animate-fade-in { animation: fadeIn 0.5s ease-out; }
     .animate-slide-up { animation: slideUp 0.6s ease-out; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -277,17 +308,53 @@
                 }
             });
         });
-    });
 
-    const deleteModal = document.getElementById('deleteModal')
-    deleteModal.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget
-        const studentId = button.getAttribute('data-id')
-        const studentName = button.getAttribute('data-name')
-        
-        document.getElementById('studentName').textContent = studentName
-        const form = document.getElementById('deleteForm')
-        form.action = `/students/delete/${studentId}/`
-    })
+        const deleteModal = document.getElementById('deleteModal');
+        if (deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const studentId = button.getAttribute('data-id');
+                const studentName = button.getAttribute('data-name');
+                
+                document.getElementById('studentName').textContent = studentName;
+                const form = document.getElementById('deleteForm');
+                form.action = `/students/delete/${studentId}/`;
+            });
+        }
+
+        const selectAll = document.getElementById('select-all-students');
+        const checkboxes = document.querySelectorAll('.student-checkbox');
+        const bulkBtn = document.getElementById('bulk-delete-btn');
+        const selectedCountSpan = document.getElementById('selected-count');
+        const bulkCountDisplay = document.getElementById('bulk-count-display');
+        const confirmBulkDelete = document.getElementById('confirm-bulk-delete');
+        const bulkForm = document.getElementById('bulk-delete-form');
+
+        function updateBulkButton() {
+            const checkedCount = document.querySelectorAll('.student-checkbox:checked').length;
+            if (checkedCount > 0) {
+                bulkBtn.classList.remove('d-none');
+                bulkBtn.classList.add('d-flex');
+                selectedCountSpan.textContent = checkedCount;
+                bulkCountDisplay.textContent = checkedCount;
+            } else {
+                bulkBtn.classList.add('d-none');
+                bulkBtn.classList.remove('d-flex');
+            }
+        }
+
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => cb.checked = this.checked);
+            updateBulkButton();
+        });
+
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', updateBulkButton);
+        });
+
+        confirmBulkDelete.addEventListener('click', function() {
+            bulkForm.submit();
+        });
+    });
 </script>
 {% endblock %}

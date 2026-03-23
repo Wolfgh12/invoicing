@@ -1,10 +1,11 @@
 {% extends 'invoices/base.html' %}
 {% load static %}
+{% load invoice_tags %}
 
 {% block content %}
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
-  tailwind.config = {
+  window.tailwind.config = {
     darkMode: ['selector', '[data-bs-theme="dark"]'], 
     theme: {
       extend: {
@@ -32,23 +33,20 @@
     }
 
     [data-bs-theme="dark"] {
-        --color-navy: #D4AF37; /* Navy text/elements turn Gold */
+        --color-navy: #D4AF37; 
         --color-navy-deep: #000b18;
         --bg-main-card: #001630;
-        --text-student: #ffffff; /* Names turn White */
+        --text-student: #ffffff;
     }
 
-    /* --- LAYOUT FIXES --- */
-    html, body { height: auto !important; overflow-y: auto !important; }
+    /* Fixed: Removed the !important overflow-y: auto which was blocking the lock */
+    html, body { height: auto; }
     
-    /* Ensure the main card background actually changes */
     .main-dashboard-card { background-color: var(--bg-main-card) !important; }
 
-    /* Student Name & Values Visibility */
     .student-name-text { color: var(--text-student) !important; }
     [data-bs-theme="dark"] .text-gray-400 { color: rgba(212, 175, 55, 0.6) !important; }
 
-    /* Search & Inputs */
     .search-input {
         width: 100% !important;
         padding: 1.25rem 1rem 1.25rem 3.5rem !important;
@@ -73,7 +71,6 @@
         border: 2px solid #D4AF37 !important;
     }
 
-    /* Animations */
     .animate-page-in { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     @keyframes slideUp {
         from { opacity: 0; transform: translateY(30px); }
@@ -82,6 +79,46 @@
 
     .message-container { transition: opacity 0.5s ease, transform 0.5s ease; }
     .message-fade-out { opacity: 0; transform: translateY(-20px); }
+
+    /* Sophisticated Card Hover */
+    .currency-pill {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(212, 175, 55, 0.1);
+    }
+    .currency-pill:hover {
+        transform: translateY(-2px);
+        border-color: #D4AF37;
+        box-shadow: 0 10px 20px -5px rgba(212, 175, 55, 0.2);
+    }
+
+    /* --- NEW: GLOWING ACTIVITY CARD --- */
+    .activity-card {
+        position: relative;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        overflow: hidden;
+    }
+    .activity-card:hover {
+        transform: scale(1.02);
+        box-shadow: 0 20px 40px rgba(212, 175, 55, 0.15);
+        border-color: #D4AF37;
+    }
+    .activity-card::after {
+        content: "";
+        position: absolute;
+        top: -50%; left: -50%;
+        width: 200%; height: 200%;
+        background: radial-gradient(circle, rgba(212,175,55,0.1) 0%, transparent 70%);
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+    }
+    .activity-card:hover::after { opacity: 1; }
+
+    /* Helper class for the scroll lock */
+    .lock-scroll {
+        overflow: hidden !important;
+        touch-action: none;
+    }
 </style>
 
 <div class="h-auto py-4 md:py-8 px-4 pb-24 animate-page-in transition-colors duration-500">
@@ -90,8 +127,9 @@
         {% if messages %}
             <div id="django-messages">
                 {% for message in messages %}
-                <div class="message-container mb-6 p-4 bg-emerald-500 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg flex items-center">
-                    <i class="fas fa-check-circle mr-3"></i> {{ message }}
+                <div class="message-container mb-6 p-4 {% if 'clearance' in message.message|lower %}bg-rose-500{% else %}bg-emerald-500{% endif %} text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg flex items-center">
+                    <i class="fas {% if 'clearance' in message.message|lower %}fa-exclamation-triangle{% else %}fa-check-circle{% endif %} mr-3"></i> 
+                    {{ message }}
                 </div>
                 {% endfor %}
             </div>
@@ -115,35 +153,79 @@
                             <i class="fas fa-list-check text-gold text-2xl"></i>
                         </div>
                         <div>
-                            <h1 class="text-2xl font-black text-navy dark:text-white tracking-tight">Payment Records</h1>
+                            <h1 class="text-2xl font-black text-navy dark:text-white tracking-tight">Financial Overview</h1>
                             <p class="text-gray-400 text-xs uppercase tracking-wide">Financial Database</p>
                         </div>
                     </div>
 
                     <div class="flex items-center space-x-3">
                         <button id="bulkDeleteBtn" type="button" onclick="openModal('bulk')" class="hidden items-center justify-center px-6 py-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[2px] shadow-lg transition-all">
-                            <i class="fas fa-trash-alt mr-2"></i> Delete Selected
+                            <i class="fas fa-trash-alt mr-2"></i> Delete <span id="selectionCount" class="mx-1">0</span> Selected
                         </button>
-
-                        <a href="{% url 'create_invoice' %}" class="flex items-center justify-center px-8 py-4 bg-emerald-500 hover:bg-navy text-white rounded-xl font-black text-[10px] uppercase tracking-[2px] shadow-lg transition-all active:scale-95">
-                            <i class="fas fa-plus-circle mr-2"></i> Create New
-                        </a>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-                    <div class="p-6 bg-[#fcfdfe] dark:bg-navy-deep border-2 border-[#f1f3f5] dark:border-white/10 rounded-xl-plus">
-                        <p class="text-[9px] font-black text-gray-400 dark:text-gold uppercase tracking-widest mb-2">Collected</p>
-                        <h3 class="text-lg font-black text-navy dark:text-white">GHS {{ total_revenue|floatformat:2 }}</h3>
+                <div class="mb-12">
+                    <div class="bg-[#fcfdfe] dark:bg-navy-deep/50 border border-[#f1f3f5] dark:border-white/5 rounded-2xl p-2 flex flex-col md:flex-row items-center gap-2">
+                        <div class="px-6 py-3 border-r border-gray-100 dark:border-white/10 hidden md:block">
+                            <p class="text-[9px] font-black text-gold uppercase tracking-[2px]">Overview</p>
+                            <i class="fas fa-chart-line text-navy dark:text-white mt-1"></i>
+                        </div>
+                        
+                        <div class="flex-grow grid grid-cols-2 md:grid-cols-4 gap-2 w-full">
+                            {% for currency_code in "GHS,USD,EUR,GBP"|split:"," %}
+                                <button onclick="openCurrencyModal('{{ currency_code }}')" class="currency-pill p-4 bg-white dark:bg-navy rounded-xl text-left group">
+                                    <div class="flex justify-between items-start mb-1">
+                                        <span class="text-[10px] font-black text-navy dark:text-white/60 uppercase tracking-tighter">{{ currency_code }}</span>
+                                        <i class="fas fa-arrow-pointer text-[8px] text-gold opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                                    </div>
+                                    <div class="flex items-baseline gap-1">
+                                        <span class="text-xs font-black text-navy dark:text-white">
+                                            {{ revenue_metrics|get_currency_total:currency_code|floatformat:0 }}
+                                        </span>
+                                        <span class="text-[8px] font-bold text-emerald-500 uppercase">Paid</span>
+                                    </div>
+                                </button>
+                            {% endfor %}
+                        </div>
+
+                        <div class="md:w-48 w-full p-4 bg-red-500 rounded-xl flex flex-col justify-center items-center md:items-end">
+                            <p class="text-[8px] font-black text-white/80 uppercase tracking-widest">Pending Invoices</p>
+                            <h3 class="text-xl font-black text-white">{{ pending_count }}</h3>
+                        </div>
                     </div>
-                    <div class="p-6 bg-[#fcfdfe] dark:bg-navy-deep border-2 border-[#f1f3f5] dark:border-white/10 rounded-xl-plus">
-                        <p class="text-[9px] font-black text-gray-400 dark:text-red-400 uppercase tracking-widest mb-2">Owed</p>
-                        <h3 class="text-lg font-black text-red-600 dark:text-red-500">GHS {{ pending_amount|floatformat:2 }}</h3>
-                    </div>
-                    <div class="p-6 bg-red-500 rounded-xl-plus shadow-lg shadow-red-500/20">
-                        <p class="text-[9px] font-black text-white/80 uppercase tracking-widest mb-2">Unpaid</p>
-                        <h3 class="text-lg font-black text-white">{{ pending_count }}</h3>
-                    </div>
+                </div>
+
+                <div class="mb-10">
+                    <a href="{% url 'activity_log' %}" class="block group">
+                        <div class="activity-card bg-[#fcfdfe] dark:bg-navy-deep/40 rounded-2xl-plus border border-gray-100 dark:border-gold/20 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div class="flex items-center space-x-6">
+                                <div class="h-14 w-14 bg-navy dark:bg-gold/10 rounded-2xl flex items-center justify-center text-gold shadow-xl group-hover:rotate-12 transition-transform duration-500">
+                                    <i class="fas fa-bolt-lightning text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-black text-navy dark:text-white uppercase tracking-widest mb-1">System Activity Log</h3>
+                                    <p class="text-[10px] text-gray-400 uppercase tracking-tighter">Click to view the full audit trail of recent changes</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center space-x-8">
+                                <div class="hidden lg:flex items-center -space-x-3">
+                                    {% for activity in recent_activities|slice:":3" %}
+                                        <div class="h-8 w-8 rounded-full border-2 border-white dark:border-navy bg-navy-deep flex items-center justify-center text-[8px] font-black text-gold">
+                                            {{ activity.user.username|slice:":1"|upper }}
+                                        </div>
+                                    {% endfor %}
+                                    <div class="h-8 w-8 rounded-full border-2 border-white dark:border-navy bg-gold flex items-center justify-center text-[8px] font-black text-navy">
+                                        +
+                                    </div>
+                                </div>
+                                <div class="h-10 w-10 rounded-full border border-gold/30 flex items-center justify-center text-gold group-hover:bg-gold group-hover:text-navy transition-all duration-300">
+                                    <i class="fas fa-chevron-right text-xs"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
                 </div>
 
                 <div class="relative group mb-10">
@@ -176,90 +258,103 @@
                     {% endif %}
                 </div>
 
-                <form id="bulkDeleteForm" action="{% url 'bulk_delete_invoices' %}" method="POST">
-                    {% csrf_token %}
-                    <div class="overflow-x-auto rounded-xl-plus border border-gray-100 dark:border-white/10">
-                        <table class="w-full text-left min-w-[700px]">
-                            <thead class="bg-[#fcfdfe] dark:bg-navy-deep border-b-2 border-gray-100 dark:border-white/10">
-                                <tr class="text-[10px] font-black text-navy dark:text-gold uppercase tracking-widest">
-                                    <th class="px-6 py-5 w-10">
-                                        <input type="checkbox" id="selectAll" class="accent-gold h-4 w-4">
-                                    </th>
-                                    <th class="px-8 py-5">Ref No.</th>
-                                    <th class="px-8 py-5">Type</th>
-                                    <th class="px-8 py-5">Student Info</th>
-                                    <th class="px-8 py-5">Total</th>
-                                    <th class="px-8 py-5">Status</th>
-                                    <th class="px-8 py-5 text-center">Manage</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-50 dark:divide-white/10">
-                                {% for inv in invoices %}
-                                <tr class="hover:bg-[#fcfdfe] dark:hover:bg-white/5 transition-all">
-                                    <td class="px-6 py-6">
-                                        <input type="checkbox" name="invoice_ids" value="{{ inv.id }}" class="invoice-checkbox accent-gold h-4 w-4">
-                                    </td>
-                                    <td class="px-8 py-6 font-bold text-gray-500">#{{ inv.invoice_number }}</td>
-                                    
-                                    <td class="px-8 py-6">
-                                        <span class="px-2 py-1 bg-navy/5 dark:bg-gold/10 text-navy dark:text-gold rounded font-bold text-[9px] uppercase tracking-wider">
-                                            {{ inv.invoice_type|default:"Fees" }}
-                                        </span>
-                                    </td>
+                {% if invoices %}
+                    <form id="bulkDeleteForm" action="{% url 'bulk_delete_invoices' %}" method="POST">
+                        {% csrf_token %}
+                        <div class="overflow-x-auto rounded-xl-plus border border-gray-100 dark:border-white/10">
+                            <table class="w-full text-left min-w-[700px]">
+                                <thead class="bg-[#fcfdfe] dark:bg-navy-deep border-b-2 border-gray-100 dark:border-white/10">
+                                    <tr class="text-[10px] font-black text-navy dark:text-gold uppercase tracking-widest">
+                                        <th class="px-6 py-5 w-10">
+                                            <input type="checkbox" id="selectAll" class="accent-gold h-4 w-4">
+                                        </th>
+                                        <th class="px-8 py-5">Ref No.</th>
+                                        <th class="px-8 py-5">Type</th>
+                                        <th class="px-8 py-5">Student Info</th>
+                                        <th class="px-8 py-5">Total</th>
+                                        <th class="px-8 py-5">Status</th>
+                                        <th class="px-8 py-5 text-center">Manage</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50 dark:divide-white/10">
+                                    {% for inv in invoices %}
+                                    <tr class="hover:bg-[#fcfdfe] dark:hover:bg-white/5 transition-all">
+                                        <td class="px-6 py-6">
+                                            <input type="checkbox" name="invoice_ids" value="{{ inv.id }}" class="invoice-checkbox accent-gold h-4 w-4">
+                                        </td>
+                                        <td class="px-8 py-6 font-bold text-gray-500">#{{ inv.invoice_number }}</td>
+                                        
+                                        <td class="px-8 py-6">
+                                            <span class="px-2 py-1 bg-navy/5 dark:bg-gold/10 text-navy dark:text-gold rounded font-bold text-[9px] uppercase tracking-wider">
+                                                {{ inv.invoice_type|default:"Fees" }}
+                                            </span>
+                                        </td>
 
-                                    <td class="px-8 py-6">
-                                        <div class="flex items-center space-x-4">
-                                            {% if inv.student.profile_image %}
-                                                <div class="h-10 w-10 rounded-full overflow-hidden border-2 border-navy-deep dark:border-gold/30">
-                                                    <img src="{{ inv.student.profile_image.url }}" alt="{{ inv.student.full_name }}" class="h-full w-full object-cover">
+                                        <td class="px-8 py-6">
+                                            <div class="flex items-center space-x-4">
+                                                {% if inv.student.profile_image %}
+                                                    <div class="h-10 w-10 rounded-full overflow-hidden border-2 border-navy-deep dark:border-gold/30">
+                                                        <img src="{{ inv.student.profile_image.url }}" alt="{{ inv.student.full_name }}" class="h-full w-full object-cover">
+                                                    </div>
+                                                {% else %}
+                                                    <div class="h-10 w-10 rounded-full bg-navy-deep text-gold flex items-center justify-center font-black">
+                                                        {{ inv.student.full_name|slice:":1"|upper }}
+                                                    </div>
+                                                {% endif %}
+                                                <div>
+                                                    <p class="student-name-text text-sm font-black">{{ inv.student.full_name }}</p>
+                                                    <p class="text-[10px] text-gray-400">{{ inv.student.index_number }}</p>
                                                 </div>
-                                            {% else %}
-                                                <div class="h-10 w-10 rounded-full bg-navy-deep text-gold flex items-center justify-center font-black">
-                                                    {{ inv.student.full_name|slice:":1"|upper }}
-                                                </div>
-                                            {% endif %}
-                                            <div>
-                                                <p class="student-name-text text-sm font-black">{{ inv.student.full_name }}</p>
-                                                <p class="text-[10px] text-gray-400">{{ inv.student.index_number }}</p>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-8 py-6">
-                                        <p class="font-black text-navy dark:text-white text-sm">GHS {{ inv.grand_total|floatformat:2 }}</p>
-                                    </td>
-                                    <td class="px-8 py-6">
-                                        {% if inv.is_paid %}
-                                        <span class="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[9px] font-black uppercase">Paid</span>
-                                        {% else %}
-                                        <span class="px-3 py-1 bg-rose-500/10 text-rose-500 rounded-full text-[9px] font-black uppercase">Unpaid</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="px-8 py-6">
-                                        <div class="flex justify-center space-x-2">
-                                            <a href="{% url 'generate_pdf' inv.id %}" target="_blank" class="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-100 dark:border-white/10 text-gold hover:bg-gold hover:text-navy transition-all">
-                                                <i class="fas fa-file-pdf"></i>
-                                            </a>
-                                            <button type="button" onclick="openModal('single', '{{ inv.id }}')" class="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-100 dark:border-white/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
-                                                <i class="fas fa-trash-can"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </form>
-
-                <div class="mt-12 border-t border-gray-100 dark:border-white/10 pt-8">
-                    <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-[2px]">
-                            Records {{ invoices.start_index }} - {{ invoices.end_index }} of {{ total_count }}
+                                        </td>
+                                        <td class="px-8 py-6">
+                                            <p class="font-black text-navy dark:text-white text-sm">{{ inv.currency|default:"GHS" }} {{ inv.grand_total|floatformat:2 }}</p>
+                                        </td>
+                                        <td class="px-8 py-6">
+                                            {% if inv.is_paid %}
+                                            <span class="px-3 py-1 bg-emerald-500/10 text-emerald-500 rounded-full text-[9px] font-black uppercase">Paid</span>
+                                            {% else %}
+                                            <span class="px-3 py-1 bg-rose-500/10 text-rose-500 rounded-full text-[9px] font-black uppercase">Unpaid</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-8 py-6">
+                                            <div class="flex justify-center space-x-2">
+                                                <a href="{% url 'generate_pdf' inv.id %}" target="_blank" class="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-100 dark:border-white/10 text-gold hover:bg-gold hover:text-navy transition-all">
+                                                    <i class="fas fa-file-pdf"></i>
+                                                </a>
+                                                <button type="button" onclick="openModal('single', '{{ inv.id }}')" class="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-100 dark:border-white/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+                                                    <i class="fas fa-trash-can"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                        
-                        {% include 'invoices/pagination.html' with page_obj=invoices query=query %}
+                    </form>
+
+                    <div class="mt-12 border-t border-gray-100 dark:border-white/10 pt-8">
+                        <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div class="text-[10px] font-black text-gray-400 uppercase tracking-[2px]">
+                                Records {{ invoices.start_index }} - {{ invoices.end_index }} of {{ total_count }}
+                            </div>
+                            
+                            {% include 'invoices/pagination.html' with page_obj=invoices query=query %}
+                        </div>
                     </div>
-                </div>
+                {% elif not query %}
+                    <div class="py-20 text-center animate-page-in">
+                        <div class="inline-flex items-center justify-center h-20 w-20 rounded-3xl bg-gray-50 dark:bg-navy-deep text-gray-300 dark:text-gold/20 mb-6 border border-gray-100 dark:border-white/5">
+                            <i class="fas fa-folder-open text-4xl"></i>
+                        </div>
+                        <h3 class="text-xl font-black text-navy dark:text-white uppercase tracking-tight mb-2">No Records Found</h3>
+                        <p class="text-gray-400 text-sm max-w-xs mx-auto mb-8">Your financial database is currently empty. Start by creating your first invoice.</p>
+                        <a href="{% url 'create_invoice' %}" class="inline-flex items-center px-8 py-4 bg-navy dark:bg-gold text-gold dark:text-navy rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all hover:scale-105 active:scale-95 border border-gold/50">
+                            <i class="fas fa-plus mr-2"></i> Create First Invoice
+                        </a>
+                    </div>
+                {% endif %}
 
             </div>
         </div>
@@ -267,12 +362,73 @@
 </div>
 
 <div id="deleteModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
-    <div class="absolute inset-0 bg-navy/80 backdrop-blur-sm"></div>
-    <div class="relative bg-white dark:bg-navy-deep w-full max-w-md rounded-2xl-plus p-8 text-center animate-page-in">
-        <h3 class="text-2xl font-black text-navy dark:text-white mb-8">Confirm Deletion?</h3>
+    <div class="absolute inset-0 bg-navy/80 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div class="relative bg-white dark:bg-navy-deep w-full max-w-md rounded-2xl-plus p-8 text-center animate-page-in shadow-2xl">
+        <div class="text-red-500 mb-4">
+            <i class="fas fa-exclamation-circle fa-4x"></i>
+        </div>
+        <h3 class="text-2xl font-black text-navy dark:text-white mb-2">Confirm Deletion?</h3>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mb-8">This action is permanent and cannot be undone.</p>
         <div class="flex space-x-4">
-            <button onclick="closeModal()" class="flex-1 px-6 py-4 bg-gray-100 dark:bg-navy text-navy dark:text-white rounded-xl font-black text-[10px] uppercase">Cancel</button>
-            <button id="confirmDeleteBtn" class="flex-1 px-6 py-4 bg-red-500 text-white rounded-xl font-black text-[10px] uppercase">Confirm</button>
+            <button onclick="closeModal()" class="flex-1 px-6 py-4 bg-gray-100 dark:bg-navy text-navy dark:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-gray-200">Cancel</button>
+            <button id="confirmDeleteBtn" class="flex-1 px-6 py-4 bg-red-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/30 transition-all hover:bg-red-600">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<div id="currencyModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-navy/80 backdrop-blur-sm" onclick="closeCurrencyModal()"></div>
+    <div class="relative bg-white dark:bg-navy-deep w-full max-w-lg rounded-2xl-plus overflow-hidden animate-page-in shadow-2xl">
+        <div class="p-6 border-b border-gray-100 dark:border-white/10 flex justify-between items-center">
+            <h3 class="text-lg font-black text-navy dark:text-white uppercase tracking-tight"><span id="modalCurrencyTitle"></span> Breakdown</h3>
+            <button onclick="closeCurrencyModal()" class="text-gray-400 hover:text-navy dark:hover:text-gold transition-colors">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6 max-h-[60vh] overflow-y-auto">
+            <div id="modalCurrencyContent" class="space-y-6">
+                {% for item in revenue_metrics %}
+                <div class="currency-item-block hidden p-5 bg-gray-50 dark:bg-navy rounded-xl border border-gray-100 dark:border-white/5" data-currency="{{ item.invoice__currency|default:'GHS' }}">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="px-4 py-1.5 bg-gold text-navy rounded-lg font-black text-xs uppercase tracking-widest">
+                            {{ item.invoice__currency|default:"GHS" }}
+                        </span>
+                        <i class="fas fa-coins text-gray-300 dark:text-white/20"></i>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-white dark:bg-navy-deep rounded-lg border border-gray-100 dark:border-white/5">
+                            <p class="text-[10px] font-black text-gray-400 dark:text-gray-300 uppercase tracking-widest">Total Amount Billed</p>
+                            <p class="text-sm font-black text-navy dark:text-white">
+                                {{ pending_metrics|get_currency_billed:item.invoice__currency|floatformat:2 }}
+                            </p>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/10">
+                            <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Total Amount Collected</p>
+                            <p class="text-sm font-black text-emerald-500">{{ item.total|floatformat:2 }}</p>
+                        </div>
+
+                        <div class="flex items-center justify-between p-3 bg-red-500/5 rounded-lg border border-red-500/10">
+                            <p class="text-[10px] font-black text-red-500 uppercase tracking-widest">Unpaid Debt</p>
+                            <p class="text-sm font-black text-red-500">
+                                {{ pending_metrics|get_currency_total:item.invoice__currency|floatformat:2 }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                <div id="noDataMessage" class="hidden py-10 text-center">
+                    <div class="text-gray-300 dark:text-white/10 mb-3">
+                        <i class="fas fa-database fa-3x"></i>
+                    </div>
+                    <p class="text-gray-400 font-bold uppercase text-[10px] tracking-widest">No data available for this currency</p>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 bg-gray-50 dark:bg-navy-deep/50 text-center">
+            <button onclick="closeCurrencyModal()" class="w-full px-6 py-4 bg-navy dark:bg-gold text-gold dark:text-navy rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Close Overview</button>
         </div>
     </div>
 </div>
@@ -283,31 +439,93 @@
     const selectAll = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.invoice-checkbox');
     const bulkBtn = document.getElementById('bulkDeleteBtn');
+    const selectionCount = document.getElementById('selectionCount');
     const modal = document.getElementById('deleteModal');
+    const currencyModal = document.getElementById('currencyModal');
     let currentDeleteId = null;
     let deleteMode = 'single';
 
-    selectAll.addEventListener('change', (e) => {
-        checkboxes.forEach(cb => cb.checked = e.target.checked);
-        toggleBulkButton();
-    });
-    checkboxes.forEach(cb => cb.addEventListener('change', toggleBulkButton));
-    function toggleBulkButton() {
-        const count = document.querySelectorAll('.invoice-checkbox:checked').length;
-        bulkBtn.classList.toggle('hidden', count === 0);
-        bulkBtn.classList.toggle('flex', count > 0);
+    function toggleBodyLock(lock) {
+        if (lock) {
+            document.body.classList.add('lock-scroll');
+        } else {
+            document.body.classList.remove('lock-scroll');
+        }
     }
-    function openModal(mode, id = null) {
-        deleteMode = mode; currentDeleteId = id;
-        modal.classList.remove('hidden'); modal.classList.add('flex');
-    }
-    function closeModal() { modal.classList.add('hidden'); modal.classList.remove('flex'); }
 
-    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
-        if (deleteMode === 'bulk') document.getElementById('bulkDeleteForm').submit();
-        else {
+    function openCurrencyModal(currencyCode) {
+        document.getElementById('modalCurrencyTitle').innerText = currencyCode;
+        const blocks = document.querySelectorAll('.currency-item-block');
+        const noData = document.getElementById('noDataMessage');
+        let found = false;
+
+        blocks.forEach(block => {
+            if(block.dataset.currency === currencyCode) {
+                block.classList.remove('hidden');
+                found = true;
+            } else {
+                block.classList.add('hidden');
+            }
+        });
+
+        if (!found) {
+            noData.classList.remove('hidden');
+        } else {
+            noData.classList.add('hidden');
+        }
+
+        currencyModal.classList.remove('hidden');
+        currencyModal.classList.add('flex');
+        toggleBodyLock(true);
+    }
+
+    function closeCurrencyModal() {
+        currencyModal.classList.add('hidden');
+        currencyModal.classList.remove('flex');
+        toggleBodyLock(false);
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', (e) => {
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+            toggleBulkButton();
+        });
+    }
+
+    checkboxes.forEach(cb => cb.addEventListener('change', toggleBulkButton));
+
+    function toggleBulkButton() {
+        const checked = document.querySelectorAll('.invoice-checkbox:checked');
+        const count = checked.length;
+        if (bulkBtn) {
+            bulkBtn.classList.toggle('hidden', count === 0);
+            bulkBtn.classList.toggle('flex', count > 0);
+            if(selectionCount) selectionCount.innerText = count;
+        }
+    }
+
+    function openModal(mode, id = null) {
+        deleteMode = mode; 
+        currentDeleteId = id;
+        modal.classList.remove('hidden'); 
+        modal.classList.add('flex');
+        toggleBodyLock(true);
+    }
+
+    function closeModal() { 
+        modal.classList.add('hidden'); 
+        modal.classList.remove('flex'); 
+        toggleBodyLock(false);
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function(e) {
+        e.preventDefault(); 
+        if (deleteMode === 'bulk') {
+            document.getElementById('bulkDeleteForm').submit();
+        } else {
             const form = document.getElementById('singleDeleteForm');
-            form.action = `/delete/${currentDeleteId}/`; form.submit();
+            form.action = `/delete/${currentDeleteId}/`; 
+            form.submit();
         }
     });
 

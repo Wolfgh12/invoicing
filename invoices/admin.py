@@ -7,7 +7,7 @@ from django.db.models import Sum, F
 from .models import (
     Invoice, Student, Service, InvoiceItem, EmailLog, 
     SystemConfiguration, Payment, Ledger, FinancialReport,
-    Receipt
+    Receipt, ActivityLog
 )
 
 # --- GLOBAL SITE CUSTOMIZATION ---
@@ -171,9 +171,9 @@ class PaymentAdmin(BaseAdmin):
     search_fields = ('invoice__invoice_number', 'reference', 'invoice__student__full_name')
 
     def formatted_amount(self, obj):
-        # FIX: Pre-format the number to avoid SafeString formatting errors
         amount_str = "{:,.2f}".format(obj.amount)
-        return format_html('<b style="color: #2e7d32;">GHS {}</b>', amount_str)
+        curr = obj.invoice.currency if obj.invoice else "GHS"
+        return format_html('<b style="color: #2e7d32;">{} {}</b>', curr, amount_str)
     formatted_amount.short_description = "Amount Paid"
 
     def get_invoice_no(self, obj):
@@ -190,9 +190,9 @@ class ReceiptAdmin(BaseAdmin):
     fields = ('receipt_number', 'invoice', 'amount', 'date', 'payment_history_timeline')
 
     def formatted_amount(self, obj):
-        # FIX: Pre-format the number
         amount_str = "{:,.2f}".format(obj.amount)
-        return format_html('<b>GHS {}</b>', amount_str)
+        curr = obj.invoice.currency if obj.invoice else "GHS"
+        return format_html('<b>{} {}</b>', curr, amount_str)
     formatted_amount.short_description = "Amount"
 
     def get_receipt_no(self, obj):
@@ -210,6 +210,7 @@ class ReceiptAdmin(BaseAdmin):
             return mark_safe('<span class="badge badge-error">No Invoice Linked</span>')
         
         payments = Payment.objects.filter(invoice=obj.invoice).order_by('date')
+        curr = obj.invoice.currency if obj.invoice else "GHS"
         
         if not payments.exists():
             return mark_safe('<div class="alert alert-warning py-2">No history recorded yet</div>')
@@ -228,7 +229,7 @@ class ReceiptAdmin(BaseAdmin):
                 <div class="flex flex-col items-start text-left ml-4">
                     <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{date_str}</span>
                     <div class="flex items-center gap-2">
-                        <span class="font-black text-slate-700">GHS {p.amount:,.2f}</span>
+                        <span class="font-black text-slate-700">{curr} {p.amount:,.2f}</span>
                         <span class="badge badge-ghost badge-sm text-[9px]">{method_display}</span>
                     </div>
                 </div>
@@ -240,7 +241,7 @@ class ReceiptAdmin(BaseAdmin):
         html += f'''
         <div class="mt-4 pt-3 border-t border-dashed border-slate-300 flex justify-between items-center">
             <span class="text-xs font-bold text-slate-500 uppercase">Total Collected</span>
-            <span class="badge badge-success font-bold text-white">GHS {total_so_far:,.2f}</span>
+            <span class="badge badge-success font-bold text-white">{curr} {total_so_far:,.2f}</span>
         </div>
         '''
         html += '</div>'
@@ -256,3 +257,43 @@ class ReceiptAdmin(BaseAdmin):
             url
         )
     download_receipt.short_description = "Actions"
+
+# --- NEW: SYSTEM ACTIVITY LOG ADMIN ---
+@admin.register(ActivityLog)
+class ActivityLogAdmin(BaseAdmin):
+    list_display = ('timestamp', 'user', 'colored_category', 'action', 'ip_address')
+    list_filter = ('category', 'timestamp', 'user')
+    search_fields = ('action', 'user__username', 'ip_address')
+    
+    # Secure logs: make everything read-only except allow deletion
+    readonly_fields = ('user', 'category', 'action', 'timestamp', 'ip_address', 'browser')
+    
+    # UPDATED: Added 'delete_selected' so you can delete ticked rows via the Run button
+    actions = ['delete_selected', 'clear_all_logs']
+
+    def colored_category(self, obj):
+        colors = {
+            'CREATE': '#2e7d32', # Green
+            'UPDATE': '#ed6c02', # Orange
+            'DELETE': '#d32f2f', # Red
+            'AUTH': '#0288d1',   # Blue
+            'FINANCE': '#7b1fa2' # Purple
+        }
+        color = colors.get(obj.category, '#757575')
+        return format_html(
+            '<span style="background: {}; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 10px;">{}</span>',
+            color, obj.get_category_display()
+        )
+    colored_category.short_description = "Category"
+
+    def has_add_permission(self, request):
+        return False # Logs cannot be manually created
+
+    def has_delete_permission(self, request, obj=None):
+        return True # CRITICAL: This allows the "Run" delete button to work
+
+    def clear_all_logs(self, request, queryset):
+        """Action to wipe every log entry in the table"""
+        ActivityLog.objects.all().delete()
+        self.message_user(request, "All activity logs have been successfully cleared.")
+    clear_all_logs.short_description = "Clear ALL activity logs"

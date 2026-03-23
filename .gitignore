@@ -1,6 +1,23 @@
+# Security
 .env
+.env.local
+.env.dev
+.env.prod
+
+# Databases
 db.sqlite3
-staticfiles/
+*.postgres
+
+# Python / Django
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+staticfiles/
 media/
+.venv/
+venv/
+ENV/
+
+# OS specific
+.DS_Store
+Thumbs.db

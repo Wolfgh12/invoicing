@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto p-6">
+    <div class="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Create New Invoice</h2>
+            <a href="{% url 'dashboard' %}" class="btn btn-ghost btn-sm">Cancel</a>
+        </div>
+
+        <form method="POST" id="invoice-form">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-semibold">Select Student</span></label>
+                    {{ form.student }}
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-semibold">Invoice Number</span></label>
+                    {{ form.invoice_number }}
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-semibold">Due Date</span></label>
+                    {{ form.due_date }}
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-semibold">Currency</span></label>
+                    {{ form.currency }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-bold text-primary">Application Fee (Optional)</span></label>
+                    {{ form.application_fee }}
+                    <p class="text-xs text-gray-400">Entering a value here overrides line items.</p>
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-bold text-primary">Tuition Fee (Optional)</span></label>
+                    {{ form.tuition_fee }}
+                    <p class="text-xs text-gray-400">Entering a value here overrides line items.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 mb-8">
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-semibold">Invoice Type / Category</span></label>
+                    <select id="type_selector" class="form-select w-full border-gray-300 rounded-md shadow-sm">
+                        <option value="Fees">General Fees (GHS)</option>
+                        <option value="UGC-ABSA">ABSA - Dollar Account (USD)</option>
+                        <option value="Accommodation">Accommodation</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    {{ form.invoice_type }} </div>
+
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-semibold">Payment Instructions / Bank Details</span></label>
+                    {{ form.payment_instructions }}
+                    <p class="text-xs text-gray-500 mt-1">These details will appear at the bottom of the PDF.</p>
+                </div>
+            </div>
+
+            <hr class="my-8">
+
+            <h3 class="text-lg font-bold mb-4">Invoice Items</h3>
+            {{ formset.management_form }}
+            <div id="item-formset-container">
+                {% for item_form in formset %}
+                <div class="item-row grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 items-end border-b pb-4 md:border-b-0">
+                    <div class="md:col-span-2">
+                        <label class="label md:hidden"><span class="label-text">Description</span></label>
+                        {{ item_form.description }}
+                    </div>
+                    <div>
+                        <label class="label md:hidden"><span class="label-text">Qty</span></label>
+                        {{ item_form.quantity }}
+                    </div>
+                    <div>
+                        <label class="label md:hidden"><span class="label-text">Rate</span></label>
+                        {{ item_form.rate }}
+                    </div>
+                    {% if formset.can_delete %}
+                    <div class="hidden">{{ item_form.DELETE }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" id="add-item-btn" class="btn btn-outline btn-sm mt-2">
+                + Add Another Line
+            </button>
+
+            <div class="mt-10 flex justify-end">
+                <button type="submit" class="btn btn-primary px-8">Generate & Save Invoice</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const addItemBtn = document.getElementById('add-item-btn');
+    const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+    const container = document.getElementById('item-formset-container');
+    
+    // Fee Priority Selectors
+    const appFeeInput = document.getElementById('id_application_fee');
+    const tuiFeeInput = document.getElementById('id_tuition_fee');
+
+    // Function to disable/enable line items based on optional fees
+    function handleFeePriority() {
+        const hasOptionalFee = (parseFloat(appFeeInput.value) > 0 || parseFloat(tuiFeeInput.value) > 0);
+        const rateInputs = container.querySelectorAll('input[id$="-rate"]');
+
+        rateInputs.forEach(input => {
+            if (hasOptionalFee) {
+                input.value = "0.00";
+                input.classList.add('bg-gray-100', 'cursor-not-allowed');
+                input.readOnly = true;
+            } else {
+                input.classList.remove('bg-gray-100', 'cursor-not-allowed');
+                input.readOnly = false;
+            }
+        });
+    }
+
+    // Attach listeners to optional fee fields
+    appFeeInput.addEventListener('input', handleFeePriority);
+    tuiFeeInput.addEventListener('input', handleFeePriority);
+
+    addItemBtn.addEventListener('click', function() {
+        let formNum = parseInt(totalForms.value);
+        let newForm = container.children[0].cloneNode(true);
+        
+        let formRegex = new RegExp(`items-(\\d+)-`, 'g');
+        newForm.innerHTML = newForm.innerHTML.replace(formRegex, `items-${formNum}-`);
+        
+        newForm.querySelectorAll('input').forEach(input => input.value = '');
+        
+        container.appendChild(newForm);
+        totalForms.setAttribute('value', formNum + 1);
+        
+        // Ensure the new row respects the current priority state
+        handleFeePriority();
+    });
+
+    const typeSelector = document.getElementById('type_selector');
+    const typeHidden = document.getElementById('id_invoice_type');
+    const currencySelector = document.getElementById('id_currency');
+    const instructionBox = document.getElementById('id_payment_instructions');
+
+    typeSelector.addEventListener('change', function() {
+        typeHidden.value = this.value;
+        
+        if (this.value === 'UGC-ABSA') {
+            currencySelector.value = 'USD';
+            instructionBox.value = "Dollar Account\nAccount name: Accra Business School-Wrexham MBA\nAccount number: 641497347\nBranch: Spintex Road\nBank Name: ABSA";
+        } else {
+            currencySelector.value = 'GHS';
+            instructionBox.value = ""; 
+        }
+    });
+
+    // Run once on load to catch pre-filled values
+    document.addEventListener('DOMContentLoaded', handleFeePriority);
+</script>
+{% endblock %}

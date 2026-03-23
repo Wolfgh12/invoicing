@@ -7,8 +7,12 @@
             size: A5;
             margin: 0.8cm;
         }
+        @font-face {
+            font-family: 'DejaVu Sans';
+            src: url('DejaVuSans.ttf');
+        }
         body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-family: 'DejaVu Sans', sans-serif;
             font-size: 11px;
             color: #333;
             line-height: 1.4;
@@ -87,6 +91,7 @@
             </td>
             <td align="right">
                 <strong>RECEIPT NO:</strong> {{ payment.receipt_number }}<br>
+                <strong>PAYMENT DATE:</strong> {{ payment.date|date:"d M Y" }}<br>
                 <strong>REF:</strong> {{ payment.reference|cut:"Multiple: "|default:"N/A" }}
             </td>
         </tr>
@@ -102,21 +107,21 @@
     <table class="summary-table">
         <tr>
             <td>Original Bill Amount</td>
-            <td align="right">{{ config.base_currency }} {{ invoice.grand_total|floatformat:2 }}</td>
+            <td align="right">{{ invoice.currency }} {{ invoice.grand_total|floatformat:2 }}</td>
         </tr>
         <tr class="total-row">
             <td>AMOUNT PAID THIS TRANSACTION</td>
-            <td align="right">{{ config.base_currency }} {{ payment.amount|floatformat:2 }}</td>
+            <td align="right">{{ invoice.currency }} {{ payment.amount|floatformat:2 }}</td>
         </tr>
         <tr>
             <td style="color: #c0392b;"><strong>REMAINING BALANCE DUE</strong></td>
-            <td align="right" style="color: #c0392b;"><strong>{{ config.base_currency }} {{ invoice.balance_due|floatformat:2 }}</strong></td>
+            <td align="right" style="color: #c0392b;"><strong>{{ invoice.currency }} {{ invoice.balance_due|floatformat:2 }}</strong></td>
         </tr>
     </table>
 
     <div class="footer">
         <p>This document serves as official proof of payment for the services listed above.</p>
-        <p>Generated on {{ generated_at|date:"l, d M Y | g:i A" }} | Powered by the I.T. Department</p>
+        <p>Issued by: <strong>{{ user.get_full_name|default:user.username }}</strong> | Generated on {{ generated_at|date:"l, d M Y | g:i A" }} | Powered by the I.T. Department</p>
     </div>
 </body>
 </html>

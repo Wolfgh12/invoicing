@@ -2,23 +2,34 @@
 
 {% block content %}
 <div class="container-fluid py-4" id="student-detail-wrapper">
-    <div class="mb-4 animate-fade-in">
+    <div class="mb-4 animate-fade-in d-flex justify-content-between align-items-center">
         <a href="{% url 'student_list' %}" class="text-decoration-none text-muted fw-bold small adaptive-muted">
             <i class="fas fa-chevron-left me-1"></i> Back to Database
         </a>
+        
+        <div class="nav nav-pills bg-light rounded-pill p-1 shadow-sm border adaptive-card">
+            {% for curr in all_supported_currencies %}
+            <div class="nav-item">
+                <a href="?currency={{ curr }}" 
+                   class="nav-link rounded-pill px-3 py-1 small fw-bold {% if selected_currency == curr %}bg-gold text-navy{% else %}text-muted{% endif %}">
+                    {{ curr }}
+                </a>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 
     <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 adaptive-card animate-slide-up">
         <div class="card-body p-0">
             <div class="row g-0">
-                <div class="col-md-4 bg-navy d-flex flex-column align-items-center justify-content-center py-5 profile-sidebar">
+                <div class="col-md-4 bg-gold d-flex flex-column align-items-center justify-content-center py-5 profile-sidebar">
                     <div class="position-relative mb-3">
                         <button type="button" class="profile-image-trigger" data-bs-toggle="modal" data-bs-target="#imageLightbox">
                             {% if student.profile_image %}
                                 <img src="{{ student.profile_image.url }}" alt="{{ student.full_name }}" 
-                                     class="avatar-xl shadow-lg border border-4 border-gold">
+                                     class="avatar-xl shadow-lg border border-4 border-white">
                             {% else %}
-                                <div class="avatar-xl shadow-lg border border-4 border-gold d-flex align-items-center justify-content-center bg-white text-navy fw-black h1 mb-0">
+                                <div class="avatar-xl shadow-lg border border-4 border-white d-flex align-items-center justify-content-center bg-white text-navy fw-black h1 mb-0">
                                     {{ student.full_name|slice:":1"|upper }}
                                 </div>
                             {% endif %}
@@ -28,8 +39,8 @@
                         </button>
                         <span class="status-indicator bg-success"></span>
                     </div>
-                    <h3 class="fw-bold text-white mb-1">{{ student.full_name }}</h3>
-                    <span class="badge bg-gold text-navy fw-bold px-3 py-2 rounded-pill shadow-sm">
+                    <h3 class="fw-bold text-navy mb-1 text-center px-3">{{ student.full_name }}</h3>
+                    <span class="badge bg-navy text-white fw-bold px-3 py-2 rounded-pill shadow-sm">
                         {{ student.index_number }}
                     </span>
                 </div>
@@ -41,7 +52,7 @@
                             <p class="text-muted adaptive-muted">Verified Institutional Record</p>
                         </div>
                         <div class="btn-group">
-                            <a href="{% url 'edit_student' student.id %}" class="btn btn-outline-navy btn-sm rounded-pill px-3 me-2">
+                            <a href="{% url 'edit_student' student.id %}" class="btn btn-outline-gold btn-sm rounded-pill px-3 me-2">
                                 <i class="fas fa-edit me-1"></i> Edit
                             </a>
                             <button class="btn btn-outline-danger btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#deleteModal">
@@ -80,28 +91,35 @@
                     <div class="icon-circle bg-light-gold text-gold mb-3 mx-auto">
                         <i class="fas fa-wallet fa-lg"></i>
                     </div>
-                    <h5 class="fw-bold text-navy adaptive-text-main">Account Summary</h5>
+                    <h5 class="fw-bold text-navy adaptive-text-main">Account Summary ({{ selected_currency }})</h5>
                     
                     <div class="mt-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <small class="text-muted">Total Billed:</small>
-                            <small class="fw-bold adaptive-text-main">₵ {{ total_billed|default:"0.00" }}</small>
-                        </div>
-                        <div class="d-flex justify-content-between mb-1">
-                            <small class="text-muted">Total Paid:</small>
-                            <small class="fw-bold text-success">₵ {{ total_paid|default:"0.00" }}</small>
-                        </div>
-                        <hr class="my-2 opacity-10">
-                        <div class="d-flex justify-content-between">
-                            <span class="fw-bold">Balance Due:</span>
-                            <span class="fw-black {% if balance_due > 0 %}text-danger{% else %}text-success{% endif %}">
-                                ₵ {{ balance_due|default:"0.00" }}
-                            </span>
-                        </div>
+                        {% if has_data %}
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-muted">Total Billed:</small>
+                                <small class="fw-bold adaptive-text-main">{{ selected_currency }} {{ total_billed|default:"0.00" }}</small>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <small class="text-muted">Total Paid:</small>
+                                <small class="fw-bold text-success">{{ selected_currency }} {{ total_paid|default:"0.00" }}</small>
+                            </div>
+                            <hr class="my-2 opacity-10">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">Balance Due:</span>
+                                <span class="fw-black {% if balance_due > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ selected_currency }} {{ balance_due|default:"0.00" }}
+                                </span>
+                            </div>
+                        {% else %}
+                            <div class="py-3">
+                                <i class="fas fa-info-circle text-muted mb-2"></i>
+                                <p class="text-muted small mb-0">No financial records found for this student in <strong>{{ selected_currency }}</strong>.</p>
+                            </div>
+                        {% endif %}
                     </div>
 
                     <hr class="my-4 opacity-10">
-                    <a href="{% url 'dashboard' %}?q={{ student.index_number }}" class="btn btn-navy w-100 rounded-pill fw-bold">
+                    <a href="{% url 'dashboard' %}?q={{ student.index_number }}" class="btn btn-gold w-100 rounded-pill fw-bold text-navy">
                         <i class="fas fa-file-invoice me-2"></i>View Invoices
                     </a>
                 </div>
@@ -123,8 +141,12 @@
                             <tr>
                                 <td class="ps-0 text-muted adaptive-muted">Status</td>
                                 <td class="text-end">
-                                    <span class="badge {% if balance_due <= 0 %}bg-success-soft text-success{% else %}bg-warning-soft text-warning{% endif %} px-3 py-2 rounded-pill">
-                                        {% if balance_due <= 0 %}Clearance Active{% else %}Pending Balance{% endif %}
+                                    <span class="badge {% if balance_due <= 0 and has_data %}bg-success-soft text-success{% elif balance_due > 0 %}bg-warning-soft text-warning{% else %}bg-light text-muted{% endif %} px-3 py-2 rounded-pill">
+                                        {% if has_data %}
+                                            {% if balance_due <= 0 %}Clearance Active{% else %}Pending Balance{% endif %}
+                                        {% else %}
+                                            No Activity
+                                        {% endif %}
                                     </span>
                                 </td>
                             </tr>
@@ -167,11 +189,10 @@
         --ugc-gold: #D4AF37;
     }
 
-    /* Profile Specific Styles */
     .bg-navy { background-color: var(--ugc-navy); }
     .text-gold { color: var(--ugc-gold); }
+    .text-navy { color: var(--ugc-navy); }
     .bg-gold { background-color: var(--ugc-gold); }
-    .border-gold { border-color: var(--ugc-gold) !important; }
     
     .profile-image-trigger {
         background: none;
@@ -217,7 +238,6 @@
         display: block;
     }
 
-    /* THE FIX: Changed from navy border to gold border */
     .status-indicator {
         position: absolute;
         bottom: 5px;
@@ -249,15 +269,31 @@
     }
     .btn-navy:hover { background-color: #003366; color: var(--ugc-gold); }
 
+    /* New Gold Theme Buttons */
+    .btn-gold {
+        background-color: var(--ugc-gold);
+        color: var(--ugc-navy);
+        border: none;
+    }
+    .btn-gold:hover {
+        background-color: #c4a02c;
+        color: var(--ugc-navy);
+    }
+
+    .btn-outline-gold {
+        border: 1px solid var(--ugc-gold);
+        color: var(--ugc-gold);
+    }
+    .btn-outline-gold:hover {
+        background: var(--ugc-gold);
+        color: var(--ugc-navy);
+    }
+
     .btn-outline-navy {
         border: 1px solid var(--ugc-navy);
         color: var(--ugc-navy);
     }
     .btn-outline-navy:hover { background: var(--ugc-navy); color: white; }
-
-    /* Lightbox Z-Index Fix */
-    .modal { z-index: 2000 !important; }
-    .modal-backdrop { z-index: 1050 !important; }
 
     /* --- DARK MODE ADAPTATION --- */
     [data-bs-theme="dark"] .adaptive-card { 
@@ -267,8 +303,7 @@
     [data-bs-theme="dark"] .adaptive-text-main { color: var(--ugc-gold) !important; }
     [data-bs-theme="dark"] .adaptive-muted { color: #a0aec0 !important; }
     [data-bs-theme="dark"] .btn-outline-navy { border-color: var(--ugc-gold); color: var(--ugc-gold); }
-    [data-bs-theme="dark"] .btn-outline-navy:hover { background: var(--ugc-gold); color: var(--ugc-navy); }
-    [data-bs-theme="dark"] .profile-sidebar { background-color: #001630 !important; border-right: 1px solid rgba(212, 175, 55, 0.1); }
+    [data-bs-theme="dark"] .profile-sidebar { background-color: #001630 !important; }
 
     /* Animations */
     .animate-fade-in { animation: fadeIn 0.5s ease-out; }

@@ -61,23 +61,6 @@
     [data-bs-theme="dark"] .table tbody td { border-bottom: 1px solid rgba(255,255,255,0.05); }
 
     .icon-stack { position: relative; display: inline-block; width: 2em; height: 2em; line-height: 2em; vertical-align: middle; margin-right: 8px; }
-    .cedi-overlay { 
-        position: absolute; 
-        bottom: 2px; 
-        right: -2px; 
-        font-size: 0.65rem; 
-        background: white; 
-        color: black; 
-        width: 14px; 
-        height: 14px; 
-        border-radius: 50%; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        font-weight: 900;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    }
-    [data-bs-theme="dark"] .cedi-overlay { background: #D4AF37; color: #002147; }
 </style>
 
 <div class="container-fluid py-4 animate-page-in">
@@ -92,7 +75,7 @@
     </div>
 
     <div class="row mb-4 align-items-center">
-        <div class="col-md-8">
+        <div class="col-md-12">
             <div class="d-flex align-items-center">
                 <div class="bg-dark text-warning p-3 rounded-3 me-3 shadow-sm border border-secondary">
                     <i class="fas fa-receipt fa-2x"></i>
@@ -107,16 +90,6 @@
                         <p class="text-muted mb-0 text-uppercase small fw-bold">Verified Payment History</p>
                     {% endif %}
                 </div>
-            </div>
-        </div>
-        <div class="col-md-4 text-end">
-            <div class="pe-3">
-                <small class="text-uppercase text-muted fw-bold" style="letter-spacing: 1px;">
-                    {% if request.GET.q %}Filtered Total{% else %}Total Revenue{% endif %}
-                </small>
-                <h2 class="fw-black text-success mb-0">
-                    {{ config.base_currency|default:"GHS" }} {{ total_collected|default:"0.00"|floatformat:2 }}
-                </h2>
             </div>
         </div>
     </div>
@@ -183,6 +156,7 @@
                                         data-student="{{ payment.invoice.student.full_name|addslashes }}"
                                         data-invoice="{{ payment.invoice.invoice_number }}"
                                         data-type="{{ payment.invoice.invoice_type|default:'Fees' }}"
+                                        data-currency="{{ payment.invoice.currency|default:'GHS' }}"
                                         data-total-invoiced="{{ payment.invoice.grand_total|floatformat:2 }}"
                                         data-log="{{ payment.payment_log|linebreaksbr }}"
                                         onclick="showHistory(this)">
@@ -199,19 +173,16 @@
                                     {% if payment.method == 'momo' %}
                                         <div class="icon-stack text-warning">
                                             <i class="fas fa-mobile-alt fa-lg"></i>
-                                            <span class="cedi-overlay">₵</span>
                                         </div>
                                         <small class="fw-bold text-uppercase">Momo</small>
                                     {% elif payment.method == 'bank' %}
                                         <div class="icon-stack text-info">
                                             <i class="fas fa-university fa-lg"></i>
-                                            <span class="cedi-overlay">₵</span>
                                         </div>
                                         <small class="fw-bold text-uppercase">Bank</small>
                                     {% else %}
                                         <div class="icon-stack text-success">
                                             <i class="fas fa-money-bill-wave fa-lg"></i>
-                                            <span class="cedi-overlay">₵</span>
                                         </div>
                                         <small class="fw-bold text-uppercase">Cash</small>
                                     {% endif %}
@@ -219,21 +190,21 @@
                             </td>
                             <td>
                                 <span class="fw-bold text-dark">
-                                    {{ config.base_currency|default:"GHS" }} 
+                                    {{ payment.invoice.currency|default:"GHS" }} 
                                     {{ payment.invoice.grand_total|floatformat:2 }}
                                 </span>
                             </td>
                             <td>
                                 <div class="d-flex flex-column">
                                     <span class="fw-black text-dark h5 mb-0">
-                                        {{ config.base_currency|default:"GHS" }} {{ payment.amount|floatformat:2 }}
+                                        {{ payment.invoice.currency|default:"GHS" }} {{ payment.amount|floatformat:2 }}
                                     </span>
                                     <span class="text-success small fw-bold"><i class="fas fa-check-double me-1"></i>Verified</span>
                                 </div>
                             </td>
                             <td>
                                 <div class="badge {% if payment.invoice.balance_due > 0 %}bg-soft-danger text-danger{% else %}bg-soft-success text-success{% endif %} px-3 py-2 rounded-pill">
-                                    {{ config.base_currency|default:"GHS" }} {{ payment.invoice.balance_due|default:"0.00"|floatformat:2 }}
+                                    {{ payment.invoice.currency|default:"GHS" }} {{ payment.invoice.balance_due|default:"0.00"|floatformat:2 }}
                                 </div>
                             </td>
                             <td class="text-end pe-4">
@@ -296,13 +267,14 @@
         const name = btn.getAttribute('data-student');
         const invoice = btn.getAttribute('data-invoice');
         const pType = btn.getAttribute('data-type');
+        const currency = btn.getAttribute('data-currency');
         const totalInvoiced = btn.getAttribute('data-total-invoiced');
         const log = btn.getAttribute('data-log');
 
         document.getElementById('modalStudentName').innerText = name;
         document.getElementById('modalPaymentType').innerText = pType;
         document.getElementById('modalInvoiceNum').innerText = "Invoice: #" + invoice;
-        document.getElementById('modalTotalInvoiced').innerText = "GHS " + parseFloat(totalInvoiced).toFixed(2);
+        document.getElementById('modalTotalInvoiced').innerText = currency + " " + parseFloat(totalInvoiced).toFixed(2);
 
         const container = document.getElementById('historyContainer');
         container.innerHTML = log;

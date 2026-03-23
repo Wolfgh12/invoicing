@@ -1,12 +1,14 @@
+import random
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models import Sum, F
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.templatetags.static import static # Added for default image handling
+from django.templatetags.static import static 
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
+from django.contrib.auth.signals import user_logged_in
 
 class SystemConfiguration(models.Model):
     """
@@ -18,7 +20,12 @@ class SystemConfiguration(models.Model):
     institution_address = models.TextField(default="P.O. Box 123, Accra, Ghana")
     base_currency = models.CharField(max_length=10, default="GHS")
     
-    # These match your Settings toggle screenshot
+    default_payment_instructions = models.TextField(
+        blank=True, 
+        null=True, 
+        help_text="Default bank details shown on invoices (e.g. ABSA account info)"
+    )
+    
     auto_generate_ledger = models.BooleanField(default=True)
     auto_send_email_receipts = models.BooleanField(default=False)
 
@@ -41,12 +48,11 @@ class Student(models.Model):
     index_number = models.CharField(max_length=50, unique=True)
     full_name = models.CharField(max_length=200)
     program = models.CharField(max_length=200) 
-    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default='100')
+    # UPDATE: Made level optional (blank=True, null=True) so it can be left out of forms
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default='100', blank=True, null=True)
     email = models.EmailField()
     phone = models.CharField(max_length=20, blank=True)
     profile_image = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
-    
-    # TEMPORARY UPDATE: Changed auto_now_add=True to default=timezone.now to allow manual fixing of dates
     date_joined = models.DateTimeField(auto_now_add=True, null=True)
 
     def __str__(self):
@@ -54,16 +60,16 @@ class Student(models.Model):
 
     @property
     def get_photo_url(self):
-        """
-        Return the profile image URL if it exists, 
-        otherwise return a path to a default avatar.
-        """
         if self.profile_image and hasattr(self.profile_image, 'url'):
             return self.profile_image.url
-        return static('images/default-avatar.png') # Ensure you have a default image in static
+        return static('images/default-avatar.png')
+
+    @property
+    def available_currencies(self):
+        """Returns a list of unique currencies used in this student's invoices."""
+        return self.invoices.values_list('currency', flat=True).distinct()
 
 class Service(models.Model):
-    # ADDED FOR HEATMAP: Categorization of services
     CATEGORY_CHOICES = [
         ('TUITION', 'Tuition Fees'),
         ('ACCOMMODATION', 'Accommodation'),
@@ -78,25 +84,46 @@ class Service(models.Model):
         return f"{self.name} (GHS {self.default_rate})"
 
 class Invoice(models.Model):
+    CURRENCY_CHOICES = [
+        ('GHS', 'Ghana Cedi (GHS)'),
+        ('USD', 'US Dollar ($)'),
+        ('EUR', 'Euro (€)'),
+        ('GBP', 'British Pound (£)'),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="invoices")
     student = models.ForeignKey(Student, on_delete=models.SET_NULL, null=True, related_name="invoices")
     invoice_number = models.CharField(max_length=50, unique=True)
     date_created = models.DateTimeField(auto_now_add=True)
     due_date = models.DateField()
-    
-    # ADDED: This field stores the "Services", "Academic", "Accommodation" tags
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='GHS')
     invoice_type = models.CharField(max_length=50, default="Fees")
+    payment_instructions = models.TextField(blank=True, null=True)
+
+    account_name = models.CharField(max_length=255, blank=True, null=True)
+    account_number = models.CharField(max_length=100, blank=True, null=True)
+    bank_name = models.CharField(max_length=255, blank=True, null=True)
+    branch_name = models.CharField(max_length=255, blank=True, null=True)
     
-    # UPDATED: Automation for expected_payment_date
+    application_fee = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    tuition_fee = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    
     expected_payment_date = models.DateField(null=True, blank=True)
-    
     is_paid = models.BooleanField(default=False)
     mail_sent = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        # AUTOMATION: Default expected_payment_date to due_date if empty
+        if not self.invoice_number:
+            while True:
+                random_suffix = random.randint(100000, 999999)
+                new_number = f"UGC-{random_suffix}"
+                if not Invoice.objects.filter(invoice_number=new_number).exists():
+                    self.invoice_number = new_number
+                    break
+        
         if not self.expected_payment_date:
             self.expected_payment_date = self.due_date
+        
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -104,9 +131,11 @@ class Invoice(models.Model):
 
     @property
     def grand_total(self):
-        items = self.items.all()
-        total = sum((item.quantity * item.rate) for item in items)
-        return total
+        from decimal import Decimal
+        app_fee = self.application_fee or Decimal('0.00')
+        tui_fee = self.tuition_fee or Decimal('0.00')
+        item_total = sum(item.total for item in self.items.all())
+        return app_fee + tui_fee + item_total
 
     @property
     def total_paid(self):
@@ -118,13 +147,10 @@ class Invoice(models.Model):
         return self.grand_total - self.total_paid
 
 class InvoiceItem(models.Model):
-    invoice = models.ForeignKey(Invoice, related_name='items', on_delete=models.CASCADE)
-    service = models.ForeignKey(Service, on_delete=models.SET_NULL, null=True, blank=True)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="items")
     description = models.CharField(max_length=255)
     quantity = models.PositiveIntegerField(default=1)
     rate = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    # ADDED FOR FORECASTING: To distinguish one-time fees from recurring ones
     is_recurring = models.BooleanField(default=False)
 
     @property
@@ -144,27 +170,21 @@ class Payment(models.Model):
     date = models.DateField()
     method = models.CharField(max_length=20, choices=METHOD_CHOICES)
     reference = models.CharField(max_length=100, blank=True, null=True)
-    
-    # NEW: Field to store the history of installments in a text format
     payment_log = models.TextField(blank=True, null=True, editable=False)
 
     def save(self, *args, **kwargs):
-        # 1. PREPARE THE NEW LOG ENTRY
         method_display = self.get_method_display() or self.method
-        new_log_entry = f"{self.date}: GHS {self.amount} ({method_display})"
+        curr = self.invoice.currency if self.invoice else "GHS"
+        new_log_entry = f"{self.date}: {curr} {self.amount} ({method_display})"
 
-        # 2. CONSOLIDATION LOGIC: Check if this invoice already has a payment record
         if not self.pk:
             existing_payment = Payment.objects.filter(invoice=self.invoice).first()
-
             if existing_payment:
-                # Update existing record data
                 new_amount = existing_payment.amount + self.amount
                 new_reference = f"Multiple: {self.reference or 'N/A'}"
                 current_log = existing_payment.payment_log or ""
                 new_log = f"{current_log}\n{new_log_entry}".strip()
                 
-                # FIXED: Use .update() instead of .save() to prevent the infinite recursion loop
                 Payment.objects.filter(pk=existing_payment.pk).update(
                     amount=new_amount,
                     date=self.date,
@@ -173,17 +193,14 @@ class Payment(models.Model):
                     payment_log=new_log
                 )
                 
-                # Check if Invoice is now paid
                 inv = existing_payment.invoice
                 if inv.balance_due <= 0:
                     Invoice.objects.filter(pk=inv.pk).update(is_paid=True)
                 
-                # Assign attributes to current instance so the View can access them after return
                 self.pk = existing_payment.pk
                 self.receipt_number = existing_payment.receipt_number
-                return # Stop here to avoid creating a duplicate row
+                return 
 
-        # 3. IF NEW PRIMARY PAYMENT: Initialize log and generate Receipt Number
         if not self.payment_log:
             self.payment_log = new_log_entry
 
@@ -194,18 +211,15 @@ class Payment(models.Model):
 
         super().save(*args, **kwargs)
 
-        # Update Invoice Paid Status
         inv = self.invoice
         if inv.balance_due <= 0:
             Invoice.objects.filter(pk=inv.pk).update(is_paid=True)
 
     def __str__(self):
-        # FIXED: Provide a fallback for receipt_number to prevent "No Receipt" or crashes in Admin
-        # Uses the property if it exists, otherwise falls back to a temporary label
         receipt_id = self.receipt_number if self.receipt_number else "New Payment"
-        return f"{receipt_id} - GHS {self.amount}"
+        curr = self.invoice.currency if self.invoice else "GHS"
+        return f"{receipt_id} - {curr} {self.amount}"
 
-# --- UPDATED MODEL FOR MAILING HISTORY ---
 class EmailLog(models.Model):
     TYPE_CHOICES = [
         ('MANUAL', 'Manual Email'),
@@ -225,42 +239,29 @@ class EmailLog(models.Model):
         name = self.student.full_name if self.student else 'Unknown'
         return f"{name} - {self.subject} ({self.date_sent.date()})"
 
-# --- AUTOMATION LOGIC ---
 @receiver(post_save, sender=Payment)
 def auto_send_receipt(sender, instance, created, **kwargs):
     config = SystemConfiguration.objects.first()
     if config and config.auto_send_email_receipts:
         invoice = instance.invoice
-        # Extra safety check for Student and Email to prevent "None" errors
         if invoice and invoice.student and invoice.student.email:
             subject = f"Payment Receipt: {instance.receipt_number}"
+            curr_code = invoice.currency 
+            
             message_body = (
                 f"Hello {invoice.student.full_name},\n\n"
-                f"We have successfully processed a payment on your account.\n"
-                f"Total Amount Paid on this Receipt: GHS {instance.amount}.\n"
+                f"Date Paid: {instance.date.strftime('%d %B, %Y')}\n"
+                f"Total Amount Paid: {curr_code} {instance.amount}.\n"
                 f"Receipt Number: {instance.receipt_number}\n"
-                f"Your remaining balance for invoice {invoice.invoice_number} is GHS {invoice.balance_due}.\n\n"
+                f"Your remaining balance is {curr_code} {invoice.balance_due}.\n\n"
                 f"Thank you."
             )
             try:
-                send_mail(
-                    subject,
-                    message_body,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [invoice.student.email],
-                    fail_silently=False
-                )
-                EmailLog.objects.create(
-                    student=invoice.student,
-                    subject=subject,
-                    message=message_body,
-                    email_type='RECEIPT',
-                    status="Sent"
-                )
+                send_mail(subject, message_body, settings.DEFAULT_FROM_EMAIL, [invoice.student.email], fail_silently=False)
+                EmailLog.objects.create(student=invoice.student, subject=subject, message=message_body, email_type='RECEIPT', status="Sent")
             except Exception as e:
-                print(f"AUTOMATED EMAIL ERROR: {e}")
+                print(f"EMAIL ERROR: {e}")
 
-# --- PROXY MODELS FOR ADMIN SIDEBAR ---
 class Ledger(Invoice):
     class Meta:
         proxy = True
@@ -278,3 +279,85 @@ class Receipt(Payment):
         proxy = True
         verbose_name = "Consolidated Receipt"
         verbose_name_plural = "Consolidated Receipts"
+
+class ActivityLog(models.Model):
+    CATEGORY_CHOICES = [
+        ('CREATE', 'Creation'),
+        ('UPDATE', 'Update'),
+        ('DELETE', 'Deletion'),
+        ('AUTH', 'Authentication'),
+        ('FINANCE', 'Financial Action'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='UPDATE')
+    action = models.CharField(max_length=255)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    browser = models.CharField(max_length=255, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user.username}: {self.action} at {self.timestamp}"
+
+@receiver(user_logged_in)
+def log_user_login(sender, request, user, **kwargs):
+    ActivityLog.objects.create(
+        user=user, 
+        category='AUTH',
+        action="Logged into the dashboard",
+        ip_address=request.META.get('REMOTE_ADDR'),
+        browser=request.META.get('HTTP_USER_AGENT')
+    )
+
+@receiver(post_save, sender=Invoice)
+def log_invoice_save(sender, instance, created, **kwargs):
+    if instance.user:
+        ActivityLog.objects.create(
+            user=instance.user, 
+            category='CREATE' if created else 'UPDATE',
+            action=f"{'Created' if created else 'Updated'} Invoice {instance.invoice_number}"
+        )
+
+@receiver(post_delete, sender=Invoice)
+def log_invoice_delete(sender, instance, **kwargs):
+    log_user = instance.user if instance.user else User.objects.filter(is_superuser=True).first()
+    if log_user:
+        ActivityLog.objects.create(
+            user=log_user, 
+            category='DELETE',
+            action=f"Deleted Invoice {instance.invoice_number}"
+        )
+
+@receiver(post_save, sender=Payment)
+def log_payment_save(sender, instance, created, **kwargs):
+    if created and instance.invoice and instance.invoice.user:
+        ActivityLog.objects.create(
+            user=instance.invoice.user, 
+            category='FINANCE',
+            action=f"Recorded Payment {instance.receipt_number} for {instance.invoice.invoice_number}"
+        )
+
+@receiver(post_save, sender=Student)
+def log_student_save(sender, instance, created, **kwargs):
+    action_text = f"{'Registered' if created else 'Updated'} Student: {instance.full_name}"
+    admin = User.objects.filter(is_superuser=True).first()
+    if admin:
+        ActivityLog.objects.create(
+            user=admin, 
+            category='CREATE' if created else 'UPDATE',
+            action=action_text
+        )
+
+@receiver(post_delete, sender=Student)
+def log_student_delete(sender, instance, **kwargs):
+    """Logs when a student record is removed from the system."""
+    admin = User.objects.filter(is_superuser=True).first()
+    if admin:
+        ActivityLog.objects.create(
+            user=admin, 
+            category='DELETE',
+            action=f"Deleted Student: {instance.full_name} ({instance.index_number})"
+        )
