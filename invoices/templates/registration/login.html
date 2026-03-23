@@ -45,17 +45,26 @@
             --watermark-color: rgba(212, 175, 55, 0.08);
         }
 
+        /* FIX: Prevents layout shift when modal opens */
+        body.modal-open {
+            padding-right: 0 !important;
+            overflow: hidden;
+        }
+
         body {
             background-color: var(--bg-color);
             background-image: radial-gradient(circle at 20% 30%, rgba(128, 0, 0, 0.05) 0%, transparent 40%),
                               radial-gradient(circle at 80% 70%, rgba(214, 163, 41, 0.1) 0%, transparent 40%);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
+            flex-direction: column; /* Changed to column to stack toggle and card */
             align-items: center;
             justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
+            overflow-x: hidden; /* Strict prevention of horizontal scroll */
+            overflow-y: auto;
             margin: 0;
+            padding: 20px; 
             transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
@@ -112,10 +121,10 @@
         }
         body.dark-mode .cloud { opacity: 0.4; }
 
+        /* Updated Theme Toggle Positioning */
         .theme-toggle {
-            position: absolute;
-            top: 25px;
-            right: 25px;
+            position: relative; 
+            margin-bottom: 20px; /* Space above the login card */
             z-index: 100;
             background: var(--card-bg);
             border: 2px solid var(--text-main);
@@ -154,7 +163,7 @@
             background: var(--card-bg); 
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 30px;
-            padding: 45px;
+            padding: 40px 30px; 
             width: 100%;
             max-width: 420px;
             z-index: 10;
@@ -183,8 +192,8 @@
         }
 
         .logo-circle {
-            width: 100%; max-width: 240px; height: 75px;
-            background: white; border-radius: 12px; margin: 0 auto 25px;
+            width: 100%; max-width: 220px; height: 70px;
+            background: white; border-radius: 12px; margin: 0 auto 20px;
             display: flex; align-items: center; justify-content: center; padding: 10px;
             box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
         }
@@ -199,6 +208,7 @@
             padding: 14px 18px;
             font-weight: 500;
             transition: all 0.3s;
+            font-size: 16px; 
         }
 
         .form-control:focus {
@@ -211,7 +221,7 @@
         .btn-login {
             background: #ffffff; border: none; color: var(--btn-text); 
             font-weight: 800; letter-spacing: 1.5px; padding: 16px;
-            border-radius: 14px; width: 100%; margin-top: 25px;
+            border-radius: 14px; width: 100%; margin-top: 20px;
             transition: 0.4s; text-transform: uppercase;
         }
 
@@ -268,11 +278,17 @@
             color: var(--modal-text);
             border-radius: 25px;
             border: 2px solid var(--accent-glow);
+            margin: 10px; /* Space on mobile */
         }
 
         .password-toggle {
             cursor: pointer;
             pointer-events: auto !important;
+        }
+
+        .portal-title {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
         }
     </style>
 </head>
@@ -342,14 +358,14 @@
         </div>
     </div>
 
-    <div class="modal fade" id="itSupportModal" tabindex="-1">
+    <div class="modal fade" id="itSupportModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content shadow-lg">
                 <div class="modal-header">
                     <h5 class="modal-title fw-black">Security Protocol</h5>
-                    <button type="button" class="btn-close" id="modalCloseBtn" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" id="modalCloseBtn" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body text-center p-5">
+                <div class="modal-body text-center p-4 p-md-5">
                     <div class="mb-4"><i class="fas fa-shield-alt fa-4x text-warning"></i></div>
                     <h4 class="fw-bold">Credential Recovery</h4>
                     <p class="opacity-75">For security reasons, password resets must be initiated by the <strong>Information Technology Department</strong>. Please contact the helpdesk or visit the I.T. Operations Center for assistance.</p>
