@@ -100,7 +100,7 @@
                                 {{ item_form.id }} {{ item_form.description }}
                             </td>
                             <td data-label="Qty">{{ item_form.quantity }}</td>
-                            <td data-label="Rate (<span class='currency-label'>GHS</span>)">{{ item_form.rate }}</td>
+                            <td data-label="Rate">{{ item_form.rate }}</td>
                             <td data-label="Total" class="fw-bold"><span class="currency-label">GHS</span> <span class="line-total">0.00</span></td>
                             <td class="pe-4 text-end action-cell">
                                 <button type="button" class="btn btn-link text-danger remove-row-btn p-0">
@@ -302,7 +302,7 @@
         const currencySelect = document.querySelector('select[name="currency"]');
         const labels = document.querySelectorAll('.currency-label');
         if (currencySelect) {
-            let displayValue = currencySelect.value.replace('GHS', 'GHS');
+            let displayValue = currencySelect.value;
             labels.forEach(el => {
                 el.innerText = displayValue;
             });
