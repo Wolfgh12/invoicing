@@ -62,15 +62,11 @@
                     </div>
 
                     <div class="row g-4">
-                        <div class="col-6 col-md-4">
+                        <div class="col-6 col-md-6">
                             <small class="text-uppercase text-muted fw-bold d-block mb-1 fs-xs">Program</small>
                             <span class="fw-bold adaptive-text-main">{{ student.program|default:"Not Assigned" }}</span>
                         </div>
-                        <div class="col-6 col-md-4">
-                            <small class="text-uppercase text-muted fw-bold d-block mb-1 fs-xs">Level</small>
-                            <span class="fw-bold adaptive-text-main">Year {{ student.level }}</span>
-                        </div>
-                        <div class="col-6 col-md-4">
+                        <div class="col-6 col-md-6">
                             <small class="text-uppercase text-muted fw-bold d-block mb-1 fs-xs">Date Registered</small>
                             <span class="fw-bold adaptive-text-main">{{ student.date_joined|date:"M d, Y"|default:"Pending" }}</span>
                         </div>
