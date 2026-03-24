@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
 
-# UPDATE: Removed 'django-insecure-' prefix from fallback to clear W009
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'ugc-finance-v3-super-secure-key-node-2026-xyz-abc-123')
+# UPDATE: Removed hardcoded fallback for production safety
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # UPDATE: Pulling from .env (Security.W018)
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
@@ -102,9 +102,13 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
+# UPDATE: Configured for Redis to support multi-worker production environments
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [os.getenv('REDIS_URL', 'redis://127.0.0.1:6379')],
+        },
     },
 }
 
