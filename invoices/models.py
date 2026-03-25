@@ -178,10 +178,19 @@ class Payment(models.Model):
         new_log_entry = f"{self.date}: {curr} {self.amount} ({method_display})"
 
         if not self.pk:
+            # Automatic unique reference generation
+            if not self.reference:
+                while True:
+                    ref_suffix = random.randint(100000, 999999)
+                    new_ref = f"REF-{ref_suffix}"
+                    if not Payment.objects.filter(reference=new_ref).exists():
+                        self.reference = new_ref
+                        break
+
             existing_payment = Payment.objects.filter(invoice=self.invoice).first()
             if existing_payment:
                 new_amount = existing_payment.amount + self.amount
-                new_reference = f"Multiple: {self.reference or 'N/A'}"
+                new_reference = f"Multiple: {self.reference}"
                 current_log = existing_payment.payment_log or ""
                 new_log = f"{current_log}\n{new_log_entry}".strip()
                 
