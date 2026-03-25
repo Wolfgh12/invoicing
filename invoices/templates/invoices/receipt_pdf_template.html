@@ -92,7 +92,7 @@
             <td align="right">
                 <strong>RECEIPT NO:</strong> {{ payment.receipt_number }}<br>
                 <strong>PAYMENT DATE:</strong> {{ payment.date|date:"d M Y" }}<br>
-                <strong>REF:</strong> {{ payment.reference|cut:"Multiple: "|default:"N/A" }}
+                <strong>REF:</strong> {{ payment.reference|cut:"REF-"|cut:"Multiple: "|default:"N/A" }}
             </td>
         </tr>
     </table>
